@@ -50,6 +50,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+
+    'apps.common.middleware.RequestIDMiddleware',
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -98,6 +101,10 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": env("REDIS_URL"),
     }
+}
+
+REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
 }
 
 
@@ -152,3 +159,49 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "filters": {
+        "request_id": {
+            "()": "apps.common.logging_filters.RequestIDFilter",
+        },
+    },
+
+    "formatters": {
+        "structured": {
+            "format": (
+                '{"timestamp":"%(asctime)s",'
+                '"level":"%(levelname)s",'
+                '"logger":"%(name)s",'
+                '"request_id":"%(request_id)s",'
+                '"message":"%(message)s"}'
+            ),
+            "style": "%",
+        },
+    },
+
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "structured",
+            "filters": ["request_id"],
+        },
+    },
+
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

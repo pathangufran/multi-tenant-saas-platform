@@ -14,9 +14,40 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import logging
 from django.contrib import admin
 from django.urls import path
+from django.http import JsonResponse
+from apps.common.exceptions import (
+    ResourceNotFoundError,
+)
+from apps.common.health_views import (
+    health_check,
+    readiness_check,
+)
+
+logger = logging.getLogger(__name__)
+
+def test_error(request):
+    raise ResourceNotFoundError(
+        message="Test resource does not exist.",
+        code="TEST_RESOURCE_NOT_FOUND",
+    )
+
+def test_logging(request):
+    logger.info("Testing structured logging")
+
+    return JsonResponse(
+        {
+            "message": "Logging test successful",
+            "request_id": request.request_id,
+        }
+    )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('test-error/', test_error),
+    path('test-logging/', test_logging),
+    path("health/", health_check),
+    path("ready/", readiness_check),
 ]
