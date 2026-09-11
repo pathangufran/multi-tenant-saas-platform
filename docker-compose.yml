@@ -1,0 +1,55 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: saas_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saas_platform
+      POSTGRES_USER: saas_user
+      POSTGRES_PASSWORD: saas_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_user -d saas_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: saas_redis
+    restart: unless-stopped
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  celery:
+    build:
+      context: ./services/auth-service
+    container_name: saas_celery
+    command: celery -A config worker --loglevel=info
+    working_dir: /app
+    volumes:
+      - ./services/auth-service:/app
+    env_file:
+      - ./services/auth-service/.env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
+volumes:
+  postgres_data:
+  redis_data:
