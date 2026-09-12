@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'apps.common',
+    'apps.users',
 
     'rest_framework',
 ]
@@ -205,3 +206,5 @@ LOGGING = {
         },
     },
 }
+
+AUTH_USER_MODEL = "users.User"
