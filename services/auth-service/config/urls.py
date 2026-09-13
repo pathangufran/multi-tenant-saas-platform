@@ -16,7 +16,7 @@ Including another URLconf
 """
 import logging
 from django.contrib import admin
-from django.urls import path
+from django.urls import path,include
 from django.http import JsonResponse
 from apps.common.exceptions import (
     ResourceNotFoundError,
@@ -46,6 +46,8 @@ def test_logging(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/v1/auth/', include('apps.users.urls')),
+
     path('test-error/', test_error),
     path('test-logging/', test_logging),
     path("health/", health_check),

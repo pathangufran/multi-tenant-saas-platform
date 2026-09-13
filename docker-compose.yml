@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: saas_platform
-      POSTGRES_USER: saas_user
-      POSTGRES_PASSWORD: saas_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Postgres@12345
     ports:
       - "5436:5432"
     volumes:
