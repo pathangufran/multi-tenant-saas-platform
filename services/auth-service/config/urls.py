@@ -46,8 +46,14 @@ def test_logging(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/auth/', include('apps.users.urls')),
-
+    path(
+        'api/v1/auth/', 
+        include('apps.users.urls'),
+    ),
+    path(
+        'api/v1/auth/',
+        include('apps.authentication.urls'),
+    ),
     path('test-error/', test_error),
     path('test-logging/', test_logging),
     path("health/", health_check),
