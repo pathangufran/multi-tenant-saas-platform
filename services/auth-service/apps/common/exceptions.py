@@ -65,3 +65,8 @@ class ServiceUnavailableError(BaseApplicationException):
     default_code = "SERVICE_UNAVAILABLE"
     default_message = "The service is temporarily unavailable."
     status_code = 503
+    
+class RateLimitError(BaseApplicationException):
+    status_code = 429
+    default_code = "RATE_LIMIT_EXCEEDED"
+    default_message = "Too many requests. Please try again later."

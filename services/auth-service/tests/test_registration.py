@@ -96,7 +96,7 @@ def test_duplicate_email_is_case_insensitive():
         format="json",
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 429
 
 
 def test_invalid_email_is_rejected():

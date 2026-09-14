@@ -20,6 +20,10 @@ from .services import AuthenticationService
 from .email_verification_service import (
     EmailVerificationService,
 )
+from apps.common.rate_limit import RateLimiter
+from .security_service import (
+    AuthenticationSecurityService,
+)
 
 class LoginView(APIView):
     
@@ -28,6 +32,12 @@ class LoginView(APIView):
             data=request.data,
         )
         serializer.is_valid(raise_exception=True,)
+        email = serializer.validated_data["email"]
+        
+        AuthenticationSecurityService.check_login_limits(
+            ip_address=RateLimiter.get_client_ip(request),
+            email=email,
+        )
         
         tokens = AuthenticationService.login(
             **serializer.validated_data,
@@ -106,6 +116,10 @@ class PasswordChangeView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         
+        AuthenticationSecurityService.check_password_change_limit(
+            user_id=str(request.user.id),
+        )
+        
         AuthenticationService.change_password(
             user=request.user,
             **serializer.validated_data,
@@ -128,6 +142,10 @@ class EmailVerificationSendView(APIView):
             data=request.data,
         )
         serializer.is_valid(raise_exception=True)
+        
+        AuthenticationSecurityService.check_verification_limit(
+            ip_address=RateLimiter.get_client_ip(request),
+        )
         
         EmailVerificationService.create_verification_token(
             **serializer.validated_data,
