@@ -1,3 +1,4 @@
+from django.db import transaction
 from apps.users.models import User
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -107,3 +108,26 @@ class AuthenticationService:
                 message="Invalid or expired refresh token."
             )
             
+    @staticmethod
+    def get_current_user(*,user):
+        
+        return user
+    
+    @staticmethod
+    @transaction.atomic
+    def change_password(
+        *,
+        user,
+        current_password: str,
+        new_password: str,
+    ) -> None:
+        if not user.check_password(current_password):
+            raise AuthenticationError(
+                message="Current password is incorrect."
+            )
+        
+        user.set_password(new_password)
+        user.save(
+            update_fields=["password","updated_at",],
+        )
+        
