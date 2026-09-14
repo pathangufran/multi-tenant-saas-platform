@@ -12,8 +12,14 @@ from .serializers import (
     CurrentUserSerializer,
     PasswordChangeSerializer,
     PasswordChangeResponseSerializer,
+    EmailVerificationSendSerializer,
+    EmailVerificationVerifySerializer,
+    EmailVerificationResponseSerializer,
 )
 from .services import AuthenticationService
+from .email_verification_service import (
+    EmailVerificationService,
+)
 
 class LoginView(APIView):
     
@@ -40,6 +46,7 @@ class TokenRefreshView(APIView):
             data=request.data,
         )
         serializer.is_valid(raise_exception=True)
+        
         tokens = AuthenticationService.refresh_token(
             **serializer.validated_data,
         )
@@ -98,6 +105,7 @@ class PasswordChangeView(APIView):
             data=request.data,
         )
         serializer.is_valid(raise_exception=True)
+        
         AuthenticationService.change_password(
             user=request.user,
             **serializer.validated_data,
@@ -106,6 +114,59 @@ class PasswordChangeView(APIView):
             {
                 "message": "Password changed successfully.",
             }
+        )
+        
+        return Response(
+            response.data,
+            status=status.HTTP_200_OK,
+        )
+        
+class EmailVerificationSendView(APIView):
+    
+    def post(self,request):
+        serializer = EmailVerificationSendSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        EmailVerificationService.create_verification_token(
+            **serializer.validated_data,
+        )
+        response = (
+            EmailVerificationResponseSerializer(
+                {
+                    "message": (
+                        "Email verification token \
+                        generated successfully."
+                    ),
+                }
+            )
+        )
+        
+        return Response(
+            response.data,
+            status=status.HTTP_200_OK,
+        )
+        
+class EmailVerificationVerifyView(APIView):
+    
+    def post(self,request):
+        serializer = EmailVerificationVerifySerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        EmailVerificationService.verify_email(
+            **serializer.validated_data,
+        )
+        response = (
+            EmailVerificationResponseSerializer(
+                {
+                    "message": (
+                        "Email verified successfully."
+                    ),
+                }
+            )
         )
         
         return Response(

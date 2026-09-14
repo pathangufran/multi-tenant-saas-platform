@@ -5,6 +5,8 @@ from .views import (
     LogoutView,
     CurrentUserView,
     PasswordChangeView,
+    EmailVerificationSendView,
+    EmailVerificationVerifyView,
 )
 
 urlpatterns = [
@@ -28,5 +30,15 @@ urlpatterns = [
         "password/change/",
         PasswordChangeView.as_view(),
         name="password-change",
+    ),
+    path(
+        "email-verification/send/",
+        EmailVerificationSendView.as_view(),
+        name="email-verification-send",
+    ),
+    path(
+        "email-verification/verify/",
+        EmailVerificationVerifyView.as_view(),
+        name="email-verification-verify",
     ),
 ]

@@ -111,3 +111,23 @@ class PasswordChangeSerializer(serializers.Serializer):
 
 class PasswordChangeResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
+    
+class EmailVerificationSendSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    
+    def validate_email(self,value):
+        try:
+            validate_email(value)
+        
+        except ValidationError:
+            raise ValidationError(
+                "Please enter a valid email."
+            )
+            
+        return value.lower().strip()
+    
+class EmailVerificationVerifySerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+    
+class EmailVerificationResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()

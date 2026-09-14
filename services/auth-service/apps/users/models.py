@@ -33,6 +33,13 @@ class User(AbstractBaseUser,PermissionsMixin):
     is_staff = models.BooleanField(
         default=False,
     )
+    email_verified = models.BooleanField(
+        default=False,
+    )
+    email_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
     date_joined = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -66,3 +73,40 @@ class User(AbstractBaseUser,PermissionsMixin):
 
     def __str__(self):
         return self.email
+    
+class EmailVerificationToken(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+    )
+    token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["user","-created_at"],
+                name="email_verify_user_created_idx",
+            ),
+        ]
+        
+    def __str__(self):
+        return f"Email verification token for {self.user.email}"
