@@ -6,6 +6,10 @@ from rest_framework_simplejwt.serializers import (
     TokenRefreshSerializer as JWTTokenRefreshSerializer
 )
 from apps.common.exceptions import AuthenticationError
+from .models import AuthenticationAuditEvent
+from .audit_service import (
+    AuthenticationAuditService,
+)
 
 class AuthenticationService:
     
@@ -15,6 +19,8 @@ class AuthenticationService:
         *,
         email: str,
         password: str,
+        ip_address: str | None = None,
+        request_id: str | None = None,
     ) -> User:
         
         try:
@@ -22,16 +28,57 @@ class AuthenticationService:
                 email__iexact=email,
             )
         except User.DoesNotExist:
+            AuthenticationAuditService.record(
+                event_type=(
+                    AuthenticationAuditEvent
+                    .EventType
+                    .LOGIN_FAILURE
+                ),
+                ip_address=ip_address,
+                request_id=request_id,
+                metadata={
+                    "reason": "invalid_credentials",
+                },
+            )
+
             raise AuthenticationError(
                 message="Invalid email or password."
             )
             
         if not user.check_password(password):
+            AuthenticationAuditService.record(
+                event_type=(
+                    AuthenticationAuditEvent
+                    .EventType
+                    .LOGIN_FAILURE
+                ),
+                user=user,
+                ip_address=ip_address,
+                request_id=request_id,
+                metadata={
+                    "reason": "invalid_credentials",
+                },
+            )
+            
             raise AuthenticationError(
                 message="Invalid email or password."
             )
             
         if not user.is_active:
+            AuthenticationAuditService.record(
+                event_type=(
+                    AuthenticationAuditEvent
+                    .EventType
+                    .LOGIN_FAILURE
+                ),
+                user=user,
+                ip_address=ip_address,
+                request_id=request_id,
+                metadata={
+                    "reason": "inactive_account",
+                },
+            )
+            
             raise AuthenticationError(
                 message="Invalid email or password."
             )
@@ -58,11 +105,25 @@ class AuthenticationService:
         *,
         email: str,
         password: str,
+        ip_address: str | None = None,
+        request_id: str | None = None,
     ) -> dict[str,str]:
         
         user = cls.authenticated_user(
             email=email,
             password=password,
+            ip_address=ip_address,
+            request_id=request_id,
+        )
+        AuthenticationAuditService.record(
+            event_type= (
+                AuthenticationAuditEvent
+                .EventType
+                .LOGIN_SUCCESS
+            ),
+            user=user,
+            ip_address=ip_address,
+            request_id=request_id,
         )
         
         return cls.generate_tokens(user=user)
@@ -98,15 +159,42 @@ class AuthenticationService:
         }
         
     @staticmethod
-    def logout(*,refresh_token: str) -> None:
+    def logout(
+        *,
+        refresh_token: str,
+        user=None,
+        ip_address: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
         try:
             token = RefreshToken(refresh_token)
+            
+            if user is None:
+                user_id = token.get("user_id")
+                try:
+                    user = User.objects.get(
+                        id=user_id,
+                    )
+                except User.DoesNotExist:
+                    user = None
+                    
             token.blacklist()
         
         except TokenError:
             raise AuthenticationError(
                 message="Invalid or expired refresh token."
             )
+            
+        AuthenticationAuditService.record(
+            event_type=(
+                AuthenticationAuditEvent
+                .EventType
+                .LOGOUT
+            ),
+            user=user,
+            ip_address=ip_address,
+            request_id=request_id,
+        )
             
     @staticmethod
     def get_current_user(*,user):
@@ -120,6 +208,8 @@ class AuthenticationService:
         user,
         current_password: str,
         new_password: str,
+        ip_address: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         if not user.check_password(current_password):
             raise AuthenticationError(
@@ -129,5 +219,15 @@ class AuthenticationService:
         user.set_password(new_password)
         user.save(
             update_fields=["password","updated_at",],
+        )    
+        AuthenticationAuditService.record(
+            event_type=(
+                AuthenticationAuditEvent
+                .EventType
+                .PASSWORD_CHANGED
+            ),
+            user=user,
+            ip_address=ip_address,
+            request_id=request_id,
         )
         

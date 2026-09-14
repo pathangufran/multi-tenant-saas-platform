@@ -24,6 +24,7 @@ from apps.common.rate_limit import RateLimiter
 from .security_service import (
     AuthenticationSecurityService,
 )
+from apps.common.middleware import request_id_context
 
 class LoginView(APIView):
     
@@ -41,6 +42,8 @@ class LoginView(APIView):
         
         tokens = AuthenticationService.login(
             **serializer.validated_data,
+            ip_address=RateLimiter.get_client_ip(request),
+            request_id=request_id_context.get(),
         )
         response = LoginResponseSerializer(tokens,)
         
@@ -78,7 +81,14 @@ class LogoutView(APIView):
         serializer.is_valid(raise_exception=True)
         
         AuthenticationService.logout(
-            **serializer.validated_data
+            **serializer.validated_data,
+            user=(
+                request.user if 
+                request.user.is_authenticated 
+                else None
+            ),
+            ip_address=RateLimiter.get_client_ip(request),
+            request_id=request_id_context.get(),
         )
         response = LogoutResponseSerializer(
             {
@@ -123,6 +133,9 @@ class PasswordChangeView(APIView):
         AuthenticationService.change_password(
             user=request.user,
             **serializer.validated_data,
+            ip_address=RateLimiter.get_client_ip(request),
+            request_id=request_id_context.get(),
+            
         )
         response = PasswordChangeResponseSerializer(
             {
@@ -149,6 +162,8 @@ class EmailVerificationSendView(APIView):
         
         EmailVerificationService.create_verification_token(
             **serializer.validated_data,
+            ip_address=RateLimiter.get_client_ip(request),
+            request_id=request_id_context.get(),
         )
         response = (
             EmailVerificationResponseSerializer(
@@ -176,6 +191,8 @@ class EmailVerificationVerifyView(APIView):
         
         EmailVerificationService.verify_email(
             **serializer.validated_data,
+            ip_address=RateLimiter.get_client_ip(request),
+            request_id=request_id_context.get(),
         )
         response = (
             EmailVerificationResponseSerializer(

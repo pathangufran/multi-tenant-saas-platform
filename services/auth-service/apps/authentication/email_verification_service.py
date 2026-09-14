@@ -7,12 +7,19 @@ from apps.common.exceptions import (
     ResourceNotFoundError,
 )
 from apps.users.models import User,EmailVerificationToken
+from .models import AuthenticationAuditEvent
+from .audit_service import AuthenticationAuditService
 
 class EmailVerificationService:
     
     @staticmethod
     @transaction.atomic
-    def create_verification_token(*,email: str) -> None:
+    def create_verification_token(
+        *,
+        email: str,
+        ip_address: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
         try:
             user = User.objects.get(
                 email__iexact=email,
@@ -38,10 +45,25 @@ class EmailVerificationService:
             user=user,
             expires_at=timezone.now() + timedelta(hours=24),
         )
+        AuthenticationAuditService.record(
+            event_type=(
+                AuthenticationAuditEvent
+                .EventType
+                .VERIFICATION_REQUESTED
+            ),
+            user=user,
+            ip_address=ip_address,
+            request_id=request_id,
+        )
         
     @staticmethod
     @transaction.atomic
-    def verify_email(*,token: str) -> User:
+    def verify_email(
+        *,
+        token: str,
+        ip_address: str | None = None,
+        request_id: str | None = None,
+    ) -> User:
         try:
             verification_token = (
                 EmailVerificationToken.objects
@@ -82,6 +104,16 @@ class EmailVerificationService:
         verification_token.used_at = timezone.now()
         verification_token.save(
             update_fields=["used_at"],
+        )
+        AuthenticationAuditService.record(
+            event_type=(
+                AuthenticationAuditEvent
+                .EventType
+                .EMAIL_VERIFIED
+            ),
+            user=user,
+            ip_address=ip_address,
+            request_id=request_id,
         )
         
         return user
