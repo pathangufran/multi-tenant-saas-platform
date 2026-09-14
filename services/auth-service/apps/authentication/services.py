@@ -1,5 +1,9 @@
 from apps.users.models import User
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import (
+    TokenRefreshSerializer as JWTTokenRefreshSerializer
+)
 from apps.common.exceptions import AuthenticationError
 
 class AuthenticationService:
@@ -61,4 +65,45 @@ class AuthenticationService:
         )
         
         return cls.generate_tokens(user=user)
+    
+    @staticmethod
+    def refresh_token(
+        *,
+        refresh_token: str,
+    ) -> dict[str,str]:
         
+        serializer = JWTTokenRefreshSerializer(
+            data={
+                "refresh": refresh_token,
+            }
+        )
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        
+        except TokenError:
+            raise AuthenticationError(
+                message="Invalid or expired refresh token."
+            )
+        
+        data = serializer.validated_data
+        
+        return {
+            "access_token": str(data["access"]),
+            "refresh_token": str(
+                data.get("refresh",refresh_token,)
+            ),
+            "token_type": "Bearer",
+        }
+        
+    @staticmethod
+    def logout(*,refresh_token: str) -> None:
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        
+        except TokenError:
+            raise AuthenticationError(
+                message="Invalid or expired refresh token."
+            )
+            

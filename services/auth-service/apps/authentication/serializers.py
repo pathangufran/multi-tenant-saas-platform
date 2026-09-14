@@ -32,8 +32,26 @@ class LoginSerializer(serializers.Serializer):
             )   
 
         return value 
-
+    
 class LoginResponseSerializer(serializers.Serializer):
     access_token = serializers.CharField()
     refresh_token = serializers.CharField()
     token_type = serializers.CharField()
+    
+class TokenRefreshSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(
+        write_only=True,
+    )
+    
+class TokenRefreshResponseSerializer(serializers.Serializer):
+    access_token = serializers.CharField()
+    refresh_token = serializers.CharField()
+    token_type = serializers.CharField()
+    
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(
+        write_only=True,
+    )
+
+class LogoutResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
