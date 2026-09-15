@@ -1,19 +1,37 @@
 services:
 
-  postgres:
+  postgres-auth:
     image: postgres:16
-    container_name: saas_postgres
+    container_name: saas_postgres_auth
     restart: unless-stopped
     environment:
-      POSTGRES_DB: saas_platform
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Postgres@12345
+      POSTGRES_DB: saas_auth
+      POSTGRES_USER: saas_auth_user
+      POSTGRES_PASSWORD: Auth@12345
     ports:
       - "5436:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_auth_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U saas_user -d saas_platform"]
+      test: ["CMD-SHELL", "pg_isready -U saas_auth_user -d saas_auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-tenant:
+    image: postgres:16
+    container_name: saas_postgres_tenant
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saas_tenant
+      POSTGRES_USER: saas_tenant_user
+      POSTGRES_PASSWORD: Tenant@12345
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_tenant_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_tenant_user -d saas_tenant"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,12 +62,48 @@ services:
     env_file:
       - ./services/auth-service/.env.docker
     depends_on:
-      postgres:
+      postgres-auth:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+  auth-service:
+    build:
+      context: ./services/auth-service
+    container_name: saas_auth_service
+    command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
+    volumes:
+      - ./services/auth-service:/app
+    env_file:
+      - ./services/auth-service/.env.docker
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tenant-service:
+    build:
+      context: ./services/tenant-service
+    container_name: saas_tenant_service
+    command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
+    volumes:
+      - ./services/tenant-service:/app
+    env_file:
+      - ./services/tenant-service/.env.docker
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres-tenant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  postgres_auth_data:
+  postgres_tenant_data:
   redis_data:
