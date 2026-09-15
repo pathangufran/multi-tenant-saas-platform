@@ -25,6 +25,10 @@ from apps.common.health_views import (
     health_check,
     readiness_check,
 )
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,4 +62,17 @@ urlpatterns = [
     path('test-logging/', test_logging),
     path("health/", health_check),
     path("ready/", readiness_check),
+    path(
+        "api/schema/",
+        SpectacularAPIView.as_view(),
+        name="schema",
+    ),
+
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(
+            url_name="schema",
+        ),
+        name="swagger-ui",
+    ),
 ]

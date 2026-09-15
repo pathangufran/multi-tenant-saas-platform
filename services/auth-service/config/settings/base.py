@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -112,6 +113,9 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_SCHEMA_CLASS": (
+        "drf_spectacular.openapi.AutoSchema"
     ),
 }
 
@@ -229,3 +233,12 @@ LOGGING = {
 }
 
 AUTH_USER_MODEL = "users.User"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "SaaS Platform Authentication API",
+    "DESCRIPTION": (
+        "Authentication APIs for the Multi-Tenant SaaS Platform."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}

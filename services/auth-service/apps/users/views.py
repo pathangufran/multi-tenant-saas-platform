@@ -10,7 +10,18 @@ from apps.common.rate_limit import RateLimiter
 from apps.authentication.security_service import (
     AuthenticationSecurityService,
 )
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(
+    request=UserRegistrationSerializer,
+    responses={
+        201: UserRegistrationResponseSerializer,
+        200: None,
+        400: None,
+        500: None,
+    },
+    tags=["Users"],
+)
 class UserRegistrationView(APIView):
 
     def post(self,request):

@@ -25,7 +25,18 @@ from .security_service import (
     AuthenticationSecurityService,
 )
 from apps.common.middleware import request_id_context
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(
+    request=LoginSerializer,
+    responses={
+        200: LoginResponseSerializer,
+        400: None,
+        401: None,
+        429: None,
+    },
+    tags=["Authentication"],
+)
 class LoginView(APIView):
     
     def post(self,request):
@@ -52,6 +63,15 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    request=TokenRefreshSerializer,
+    responses={
+        200: TokenRefreshResponseSerializer,
+        400: None,
+        401: None,
+    },
+    tags=["Authentication"],
+)
 class TokenRefreshView(APIView):
     
     def post(self,request):
@@ -72,6 +92,15 @@ class TokenRefreshView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    request=LogoutSerializer,
+    responses={
+        200: LogoutResponseSerializer,
+        400: None,
+        401: None,
+    },
+    tags=["Authentication"],
+)
 class LogoutView(APIView):
     
     def post(self,request):
@@ -101,6 +130,13 @@ class LogoutView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    responses={
+        200: CurrentUserSerializer,
+        401: None,
+    },
+    tags=["Authentication"],
+)
 class CurrentUserView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -116,6 +152,16 @@ class CurrentUserView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    request=PasswordChangeSerializer,
+    responses={
+        200: PasswordChangeResponseSerializer,
+        400: None,
+        401: None,
+        429: None,
+    },
+    tags=["Authentication"],
+)
 class PasswordChangeView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -148,6 +194,17 @@ class PasswordChangeView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    request=EmailVerificationSendSerializer,
+    responses={
+        200: EmailVerificationResponseSerializer,
+        400: None,
+        404: None,
+        409: None,
+        429: None,
+    },
+    tags=["Email Verification"],
+)
 class EmailVerificationSendView(APIView):
     
     def post(self,request):
@@ -181,6 +238,16 @@ class EmailVerificationSendView(APIView):
             status=status.HTTP_200_OK,
         )
         
+@extend_schema(
+    request=EmailVerificationVerifySerializer,
+    responses={
+        200: EmailVerificationResponseSerializer,
+        400: None,
+        401: None,
+        409: None,
+    },
+    tags=["Email Verification"],
+)
 class EmailVerificationVerifyView(APIView):
     
     def post(self,request):
