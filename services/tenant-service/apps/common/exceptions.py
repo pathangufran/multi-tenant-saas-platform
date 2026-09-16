@@ -16,6 +16,11 @@ class BaseApplicationException(Exception):
         self.code = code or self.default_code
         self.details = details or dict()
         super().__init__(self.message)
+        
+class AuthorizationError(BaseApplicationException):
+    default_code = "AUTHORIZATION_ERROR"
+    default_message = "Authorization failed."
+    status_code = 403
 
 class ValidationError(BaseApplicationException):
     default_code = "VALIDATION_ERROR"
