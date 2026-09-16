@@ -1,4 +1,9 @@
+from uuid import UUID
 from .models import TenantMembership
+from .isolation import TenantIsolationService
+from apps.common.exceptions import (
+    ResourceNotFoundError,
+)
 
 class TenantMembershipSelector:
     
@@ -22,6 +27,29 @@ class TenantMembershipSelector:
                 user_id=user_id,
             )
         )
+        
+    @staticmethod
+    def get_membership_for_current_tenant(
+        *,
+        membership_id,
+    ) -> TenantMembership:
+        tenant_id = (
+            TenantIsolationService
+            .get_current_tenant_id()
+        )
+        try:
+            return (
+                TenantMembership.objects
+                .select_related("tenant")
+                .get(
+                    id=membership_id,
+                    tenant_id=tenant_id,
+                )
+            )
+        except TenantMembership.DoesNotExist:
+            return ResourceNotFoundError(
+                message="Membership not found."
+            )
         
     @staticmethod
     def get_active_user_memberships(*,user_id,):

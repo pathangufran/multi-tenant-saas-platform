@@ -93,6 +93,7 @@ class TestTenantMembershipService:
         result = (
             TenantMembershipService.activate_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )
         )
 
@@ -110,6 +111,7 @@ class TestTenantMembershipService:
         result = (
             TenantMembershipService.suspend_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )
         )
 
@@ -126,6 +128,7 @@ class TestTenantMembershipService:
         result = (
             TenantMembershipService.remove_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )
         )
 
@@ -143,6 +146,7 @@ class TestTenantMembershipService:
         with pytest.raises(ConflictError):
             TenantMembershipService.activate_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )
 
     def test_removed_membership_cannot_be_suspended(self):
@@ -155,6 +159,7 @@ class TestTenantMembershipService:
         with pytest.raises(ConflictError):
             TenantMembershipService.suspend_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )
 
     def test_already_removed_membership_cannot_be_removed_again(self):
@@ -167,4 +172,5 @@ class TestTenantMembershipService:
         with pytest.raises(ConflictError):
             TenantMembershipService.remove_membership(
                 membership_id=membership.id,
+                tenant_id=self.tenant.id,
             )

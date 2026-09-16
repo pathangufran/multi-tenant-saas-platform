@@ -1,3 +1,4 @@
+from uuid import UUID
 from django.db import IntegrityError,transaction
 from django.utils import timezone
 from apps.common.exceptions import (
@@ -5,6 +6,7 @@ from apps.common.exceptions import (
     ResourceNotFoundError,
 )
 from .models import Tenant,TenantMembership
+from .isolation import TenantIsolationService
 
 class TenantMembershipService:
     
@@ -62,17 +64,25 @@ class TenantMembershipService:
     def activate_membership(
         *,
         membership_id,
+        tenant_id: UUID,
     ) -> TenantMembership:
         try:
             membership = (
                 TenantMembership.objects
                 .select_for_update()
-                .get(id=membership_id)
+                .get(
+                    id=membership_id,
+                    tenant_id=tenant_id,    
+                )
             )
         except TenantMembership.DoesNotExist:
             raise ResourceNotFoundError(
                 message="Membership not found."
             )
+        
+        TenantIsolationService.ensure_tenant_access(
+            tenant_id=membership.tenant_id,
+        )
             
         if membership.status == TenantMembership.Status.REMOVED:
             raise ConflictError(
@@ -95,17 +105,25 @@ class TenantMembershipService:
     def suspend_membership(
         *,
         membership_id,
+        tenant_id: UUID,
     ) -> TenantMembership:
         try:
             membership = (
                 TenantMembership.objects
                 .select_for_update()
-                .get(id=membership_id)
+                .get(
+                    id=membership_id,
+                    tenant_id=tenant_id,    
+                )
             )  
         except TenantMembership.DoesNotExist:
             raise ResourceNotFoundError(
                 message="Membership not found."
             )
+            
+        TenantIsolationService.ensure_tenant_access(
+            tenant_id=membership.tenant_id,
+        )
         
         if membership.status == TenantMembership.Status.REMOVED:
             raise ConflictError(
@@ -125,17 +143,25 @@ class TenantMembershipService:
     def remove_membership(
         *,
         membership_id,
+        tenant_id: UUID,
     ) -> TenantMembership:
         try:
             membership = (
                 TenantMembership.objects
                 .select_for_update()
-                .get(id=membership_id)
+                .get(
+                    id=membership_id,
+                    tenant_id=tenant_id,
+                )
             )
         except TenantMembership.DoesNotExist:
             raise ResourceNotFoundError(
                 message="Membership not found."
             )
+            
+        TenantIsolationService.ensure_tenant_access(
+            tenant_id=membership.tenant_id,
+        )
             
         if membership.status == TenantMembership.Status.REMOVED:
             raise ConflictError(

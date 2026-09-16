@@ -1,6 +1,7 @@
 import uuid 
 from django.db import models 
 from django.db.models.functions import Lower
+from .mixins import TenantScopedModel
 
 class Tenant(models.Model):
     class Status(models.TextChoices):
@@ -50,7 +51,7 @@ class Tenant(models.Model):
     def __str__(self):
         return self.name
     
-class TenantMembership(models.Model):
+class TenantMembership(TenantScopedModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         INVITED = "invited", "Invited"
