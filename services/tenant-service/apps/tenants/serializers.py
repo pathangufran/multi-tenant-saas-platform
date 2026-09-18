@@ -26,6 +26,36 @@ class TenantCreateSerializer(serializers.Serializer):
             
         return value
     
+class TenantUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        max_length=255,
+        required=False,
+    )
+    slug = serializers.CharField(
+        max_length=100,
+        required=False,
+    )
+    
+    def validate_name(self,value):
+        value = value.strip()
+        
+        if not value:
+            raise ValidationError(
+                "Tenant name cannot be empty."
+            )
+            
+        return value
+    
+    def validate_slug(self,value):
+        value = value.strip().lower()
+        
+        if not value:
+            raise ValidationError(
+                "Tenant slug cannot be empty."
+            )
+            
+        return value
+    
 class TenantResponseSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     name = serializers.CharField()
