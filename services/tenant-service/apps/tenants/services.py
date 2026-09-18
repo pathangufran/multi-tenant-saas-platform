@@ -1,6 +1,7 @@
 from django.db import IntegrityError,transaction
 from django.utils.text import slugify
 from .models import Tenant
+from .membership_service import TenantMembership
 
 class TenantService:
     
@@ -10,6 +11,7 @@ class TenantService:
         *,
         name: str,
         slug: str,
+        owner_user_id,
     ) -> Tenant:
         name = name.strip()
         slug = slugify(slug)
@@ -31,9 +33,19 @@ class TenantService:
             )
             
         try:
-            return Tenant.objects.create(
-                name=name,slug=slug,
+            tenant = Tenant.objects.create(
+                name=name,
+                slug=slug,
+                status=Tenant.Status.ACTIVE,
             )
+            TenantMembership.objects.create(
+                tenant=tenant,
+                user_id=owner_user_id,
+                status=TenantMembership.Status.ACTIVE,
+            )
+            
+            return tenant
+            
             
         except IntegrityError:
             raise ValueError(
