@@ -1,23 +1,36 @@
 from uuid import UUID
-from .models import TenantMembership
-from .isolation import TenantIsolationService
 from apps.common.exceptions import (
     ResourceNotFoundError,
 )
+from .isolation import TenantIsolationService
+from .models import TenantMembership
+from .selector_mixins import (
+    TenantScopedSelectorMixin,
+)
 
-class TenantMembershipSelector:
-    
+class TenantMembershipSelector(
+    TenantScopedSelectorMixin,
+):
+    model = TenantMembership
+
     @staticmethod
-    def get_by_id(*,membership_id,) -> TenantMembership:
+    def get_by_id(
+        *,
+        membership_id,
+    ) -> TenantMembership:
         return (
             TenantMembership.objects
             .select_related("tenant")
-            .get(id=membership_id,)
+            .get(
+                id=membership_id,
+            )
         )
-        
+
     @staticmethod
     def get_user_membership(
-        *,tenant_id,user_id,
+        *,
+        tenant_id: UUID,
+        user_id: UUID,
     ) -> TenantMembership:
         return (
             TenantMembership.objects
@@ -27,32 +40,24 @@ class TenantMembershipSelector:
                 user_id=user_id,
             )
         )
-        
-    @staticmethod
-    def get_membership_for_current_tenant(
+
+    @classmethod
+    def get_for_current_tenant(
+        cls,
         *,
+        tenant_id: UUID,
         membership_id,
     ) -> TenantMembership:
-        tenant_id = (
-            TenantIsolationService
-            .get_current_tenant_id()
+        return super().get_for_current_tenant(
+            object_id=membership_id,
+            tenant_id=tenant_id,
         )
-        try:
-            return (
-                TenantMembership.objects
-                .select_related("tenant")
-                .get(
-                    id=membership_id,
-                    tenant_id=tenant_id,
-                )
-            )
-        except TenantMembership.DoesNotExist:
-            return ResourceNotFoundError(
-                message="Membership not found."
-            )
-        
+
     @staticmethod
-    def get_active_user_memberships(*,user_id,):
+    def get_active_user_memberships(
+        *,
+        user_id: UUID,
+    ):
         return (
             TenantMembership.objects
             .select_related("tenant")
@@ -61,12 +66,14 @@ class TenantMembershipSelector:
                 status=TenantMembership.Status.ACTIVE,
             )
         )
-        
+
     @staticmethod
-    def get_active_tenant_memberships(*,tenant_id,):
+    def get_active_tenant_memberships(
+        *,
+        tenant_id: UUID,
+    ):
         return (
             TenantMembership.objects
-            .select_related("tenant")
             .filter(
                 tenant_id=tenant_id,
                 status=TenantMembership.Status.ACTIVE,

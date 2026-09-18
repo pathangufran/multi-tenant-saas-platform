@@ -8,6 +8,11 @@ from apps.tenants.models import Tenant, TenantMembership
 from apps.tenants.membership_service import (
     TenantMembershipService,
 )
+from apps.tenants.context import (
+    set_tenant_context,
+    clear_tenant_context,
+)
+from apps.tenants.tenant_context import TenantContext
 
 @pytest.mark.django_db
 class TestTenantMembershipService:
@@ -19,6 +24,16 @@ class TestTenantMembershipService:
             name="Acme Corporation",
             slug="acme",
         )
+        
+        self.context_token = set_tenant_context(
+            TenantContext(
+                tenant_id=self.tenant.id,
+                user_id=self.user_id,
+            )
+        )
+        
+    def teardown_method(self):
+        clear_tenant_context(self.context_token)
 
     def test_create_membership(self):
         membership = (
@@ -87,7 +102,7 @@ class TestTenantMembershipService:
         membership = TenantMembership.objects.create(
             tenant=self.tenant,
             user_id=self.user_id,
-            status=TenantMembership.Status.INVITED,
+            status=TenantMembership.Status.ACTIVE,
         )
 
         result = (
@@ -98,7 +113,7 @@ class TestTenantMembershipService:
         )
 
         assert result.status == (
-            TenantMembership.Status.INVITED
+            TenantMembership.Status.ACTIVE
         )
         assert result.joined_at is not None
 

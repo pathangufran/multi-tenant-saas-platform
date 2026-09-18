@@ -169,7 +169,26 @@ class TestTenantIsolation:
         with pytest.raises(AuthorizationError):
             (
                 TenantMembershipSelector
-                .get_membership_for_current_tenant(
+                .get_for_current_tenant(
+                    tenant_id=self.tenant_b.id,
                     membership_id=membership.id,
                 )
             )
+            
+    def test_for_tenant_requires_tenant_id(self):
+        with pytest.raises(ValueError):
+            TenantMembership.objects.for_tenant(
+                tenant_id=None,
+            )
+            
+    def test_for_current_tenant_uses_context(self):
+        memberships = list(
+            TenantMembership.objects
+            .for_current_tenant()
+        )
+
+        assert all(
+            membership.tenant_id
+            == self.tenant_a.id
+            for membership in memberships
+        )

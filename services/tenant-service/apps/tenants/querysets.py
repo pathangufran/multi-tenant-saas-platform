@@ -1,5 +1,5 @@
 from uuid import UUID
-from django.db import models
+from django.db import models 
 from .isolation import TenantIsolationService
 
 class TenantScopedQuerySet(models.QuerySet):
@@ -9,6 +9,11 @@ class TenantScopedQuerySet(models.QuerySet):
         *,
         tenant_id: UUID
     ):
+        if tenant_id is None:
+            raise ValueError(
+                "tenant_id is required."
+            )
+            
         return self.filter(
             tenant_id=tenant_id,
         )
