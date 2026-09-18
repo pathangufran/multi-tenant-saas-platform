@@ -1,4 +1,3 @@
-
 class BaseApplicationException(Exception):
     """Base exception for application-level errors."""
 
@@ -48,18 +47,15 @@ class RateLimitError(BaseApplicationException):
     default_message = "Too many requests."
     status_code = 429
 
-
 class ExternalServiceError(BaseApplicationException):
     default_code = "EXTERNAL_SERVICE_ERROR"
     default_message = "An external service failed."
     status_code = 502
 
-
 class DatabaseError(BaseApplicationException):
     default_code = "DATABASE_ERROR"
     default_message = "A database error occurred."
     status_code = 500
-
 
 class ServiceUnavailableError(BaseApplicationException):
     default_code = "SERVICE_UNAVAILABLE"
