@@ -113,3 +113,85 @@ class TenantMembership(TenantScopedModel):
         
     def __str__(self):
         return f"{self.user_id} - {self.tenant.name}"
+    
+class AuditEvent(models.Model):
+    class EventType(models.TextChoices):
+        TENANT_CREATED = (
+            "tenant.created",
+            "Tenant Created",
+        )
+        TENANT_UPDATED = (
+            "tenant.updated",
+            "Tenant Updated",
+        )
+        TENANT_SUSPENDED = (
+            "tenant.suspended",
+            "Tenant Suspended",
+        )
+        TENANT_ACTIVATED = (
+            "tenant.activated",
+            "Tenant Activated",
+        )
+        TENANT_DEACTIVATED = (
+            "tenant.deactivated",
+            "Tenant Deactivated",
+        )
+        
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    tenant_id = models.UUIDField(
+        db_index=True,
+    )
+    actor_user_id = models.UUIDField(
+        db_index=True,
+    )
+    event_type = models.CharField(
+        max_length=100,
+        choices=EventType.choices,
+        db_index=True,
+    )
+    entity_type = models.CharField(
+        max_length=100,
+    )
+    entity_id = models.UUIDField(
+        db_index=True,
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=[
+                    "tenant_id","created_at",
+                ],
+                name="audit_tenant_created_idx",
+            ),
+            models.Index(
+                fields=[
+                    "tenant_id","event_type",
+                ],
+                name="audit_tenant_event_idx",
+            ),
+            models.Index(
+                fields=[
+                    "actor_user_id","created_at",
+                ],
+                name="audit_actor_created_idx",
+            ),
+        ]
+        
+    def __str__(self):
+        return (
+            f"{self.event_type} - "
+            f"{self.entity_id}"
+        )

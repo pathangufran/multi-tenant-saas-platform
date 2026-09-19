@@ -1,11 +1,12 @@
 from uuid import UUID
 from django.utils.text import slugify
 from django.db import IntegrityError,transaction
-from .models import Tenant,TenantMembership
+from .models import Tenant,TenantMembership,AuditEvent
 from apps.common.exceptions import (
     ResourceNotFoundError,
 )
 from django.http import JsonResponse
+from .audit_service import AuditEventService
 
 class TenantService:
     
@@ -46,6 +47,17 @@ class TenantService:
                 tenant=tenant,
                 user_id=owner_user_id,
                 status=TenantMembership.Status.ACTIVE,
+            )
+            AuditEventService.record_tenant_event(
+                tenant_id=tenant.id,
+                actor_user_id=owner_user_id,
+                event_type=(
+                    AuditEvent.EventType.TENANT_CREATED
+                ),
+                metadata={
+                    "name": tenant.name,
+                    "slug": tenant.slug,
+                },
             )
             
             return tenant
@@ -121,6 +133,9 @@ class TenantService:
                 message="Tenant not found."
             )
             
+        old_name = tenant.name
+        old_slug = tenant.slug
+            
         if name is not None:
             name = name.strip()
             
@@ -164,6 +179,20 @@ class TenantService:
                 "A tenant with this slug already exists."
             )
             
+        AuditEventService.record_tenant_event(
+            tenant_id=tenant.id,
+            actor_user_id=user_id,
+            event_type=(
+                AuditEvent.EventType.TENANT_UPDATED
+            ),
+            metadata={
+                "previous_name": old_name,
+                "new_name": tenant.name,
+                "previous_slug": old_slug,
+                "new_slug": tenant.slug,
+            },
+        )
+            
         return tenant
             
     @staticmethod
@@ -191,12 +220,38 @@ class TenantService:
             raise ResourceNotFoundError(
                 message="Tenant not found."
             )
+        
+        old_status = tenant.status
             
         tenant.status = status
         tenant.save(
             update_fields=[
                 "status","updated_at",
             ]
+        )
+        
+        event_map = {
+            Tenant.Status.SUSPENDED: (
+                AuditEvent.EventType.TENANT_SUSPENDED
+            ),
+            Tenant.Status.ACTIVE: (
+                AuditEvent.EventType.TENANT_ACTIVATED
+            ),
+            Tenant.Status.DEACTIVATED: (
+                AuditEvent.EventType.TENANT_DEACTIVATED
+            ),
+        }
+        
+        event_type = event_map[status]
+        
+        AuditEventService.record_tenant_event(
+            tenant_id=tenant.id,
+            actor_user_id=user_id,
+            event_type=event_type,
+            metadata={
+                "previous_status": old_status,
+                "new_status": tenant.status,
+            },
         )
         
         return tenant
