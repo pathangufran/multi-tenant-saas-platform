@@ -1,3 +1,7 @@
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -16,6 +20,18 @@ class TenantCreateView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        tags=["Tenants"],
+        request=TenantCreateSerializer,
+        responses={
+            201: TenantResponseSerializer,
+        },
+        description=(
+            "Create a tenant and establish an "
+            "active owner membership for the "
+            "authenticated user."
+        ),
+    )
     def post(self,request):
         
         serializer = TenantCreateSerializer(
@@ -46,6 +62,14 @@ class TenantListView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        tags=["Tenants"],
+        responses=TenantResponseSerializer(many=True),
+        description=(
+            "Return all active tenant memberships "
+            "belonging to the authenticated user."
+        ),
+    )
     def get(self,request):
         
         tenants = TenantService.get_user_tenants(
@@ -65,6 +89,19 @@ class CurrentTenantView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        tags=["Tenants"],
+        responses={
+            200: TenantResponseSerializer,
+            404: OpenApiResponse(
+                description="Tenant not found."
+            ),
+        },
+        description=(
+            "Retrieve a tenant accessible to "
+            "the authenticated user."
+        ),
+    )
     def get(self,request,tenant_id):
         
         try:
@@ -85,6 +122,19 @@ class CurrentTenantView(APIView):
             status=status.HTTP_200_OK,
         )
         
+    @extend_schema(
+        tags=["Tenants"],
+        request=TenantUpdateSerializer,
+        responses={
+            200: TenantResponseSerializer,
+            404: OpenApiResponse(
+                description="Tenant not found."
+            ),
+        },
+        description=(
+            "Update tenant name and/or slug."
+        ),
+    )
     def patch(self,request,tenant_id):
         
         serializer = TenantUpdateSerializer(
@@ -122,6 +172,16 @@ class TenantSuspendView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        tags=["Tenants"],
+        responses={
+            200: TenantResponseSerializer,
+            404: OpenApiResponse(
+                description="Tenant not found."
+            ),
+        },
+        description="Suspend an active tenant.",
+    )
     def post(self,request,tenant_id):
         
         try:
@@ -151,6 +211,16 @@ class TenantActivateView(APIView):
     
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        tags=["Tenants"],
+        responses={
+            200: TenantResponseSerializer,
+            404: OpenApiResponse(
+                description="Tenant not found."
+            ),
+        },
+        description="Activate a tenant.",
+    )
     def post(self,request,tenant_id):
         
         try:
@@ -175,6 +245,16 @@ class TenantDeactivateView(APIView):
     
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Tenants"],
+        responses={
+            200: TenantResponseSerializer,
+            404: OpenApiResponse(
+                description="Tenant not found."
+            ),
+        },
+        description="Deactivate a tenant.",
+    )
     def post(self,request,tenant_id):
         
         try:

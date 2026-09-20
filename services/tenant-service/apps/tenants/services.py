@@ -91,7 +91,7 @@ class TenantService:
             tenant = (
                 Tenant.objects
                 .filter(
-                    tenant_id=tenant_id,
+                    id=tenant_id,
                     memberships__user_id=user_id,
                     memberships__status=(
                         TenantMembership.Status.ACTIVE

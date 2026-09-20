@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.tenants',
     
     'rest_framework',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -95,6 +96,28 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "apps.tenants.authentication.TenantJWTAuthentication",
     ),
+    "DEFAULT_SCHEMA_CLASS": (
+        "drf_spectacular.openapi.AutoSchema"
+    ),
+    "EXCEPTION_HANDLER": (
+        "apps.common.exception_handler.custom_exception_handler"
+    ),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "SaaS Platform Tenant Service API",
+    "DESCRIPTION": (
+        "Tenant management, membership, "
+        "tenant isolation, lifecycle management "
+        "and tenant audit APIs."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY": [
+        {
+            "BearerAuth": [],
+        }
+    ],
 }
 
 SIMPLE_JWT = {

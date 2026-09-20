@@ -24,7 +24,7 @@ class TenantSelector:
         return (
             Tenant.objects
             .filter(
-                tenant_id=tenant_id,
+                id=tenant_id,
                 user_id=user_id,
                 membership__status=(
                     TenantMembership.Status.ACTIVE
