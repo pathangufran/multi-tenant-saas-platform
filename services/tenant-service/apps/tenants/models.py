@@ -1,5 +1,6 @@
 import uuid 
 from django.db import models 
+from django.db.models import Q
 from django.db.models.functions import Lower
 from .mixins import TenantScopedModel
 
@@ -69,6 +70,13 @@ class TenantMembership(TenantScopedModel):
         related_name="memberships",
     )
     user_id = models.UUIDField(db_index=True,)
+    role = models.ForeignKey(
+        "Role",
+        on_delete=models.PROTECT,
+        related_name="memberships",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -91,7 +99,7 @@ class TenantMembership(TenantScopedModel):
 
         indexes = [
             models.Index(
-                fields=["tenant", "status"],
+                fields=["tenant", "status","role"],
                 name="membership_tenant_status_idx",
             ),
             models.Index(
@@ -112,7 +120,12 @@ class TenantMembership(TenantScopedModel):
         ]
         
     def __str__(self):
-        return f"{self.user_id} - {self.tenant.name}"
+        role_code = (
+            self.role.code
+            if self.role
+            else "NO_ROLE"
+        )
+        return f"{self.user_id} - {self.tenant.name} - {role_code}" 
     
 class AuditEvent(models.Model):
     class EventType(models.TextChoices):
@@ -195,3 +208,108 @@ class AuditEvent(models.Model):
             f"{self.event_type} - "
             f"{self.entity_id}"
         )
+        
+class Permission(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    name = models.CharField(
+        max_length=255,
+    )
+    code = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+    description = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    
+    class Meta:
+        ordering = ["code"]
+        
+    def __str__(self):
+        return self.code
+    
+class Role(models.Model):
+    class Scope(models.TextChoices):
+        TENANT = "tenant", "Tenant"
+        PLATFORM = "platform", "Platform"
+        
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    name = models.CharField(
+        max_length=100,
+    )
+    code = models.CharField(
+        max_length=100,
+    )
+    scope = models.CharField(
+        max_length=20,
+        choices=Scope.choices,
+        default=Scope.TENANT,
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="roles",
+        null=True,
+        blank=True,
+    )
+    description = models.TextField(
+        blank=True,
+    )
+    is_system_role = models.BooleanField(
+        default=False,
+    )
+    permissions = models.ManyToManyField(
+        Permission,
+        related_name="roles",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    
+    class Meta:
+        ordering = ["scope", "code"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "tenant","code",
+                ],
+                name="role_tenant_code_unique",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        scope="tenant",
+                        tenant__isnull=False,
+                    )
+                    | Q(
+                        scope="platform",
+                        tenant__isnull=True,
+                    )
+                ),
+                name="role_scope_tenant_consistency",
+            ),
+        ]
+
+    def __str__(self):
+        return self.code

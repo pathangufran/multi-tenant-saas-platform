@@ -5,7 +5,7 @@ from apps.common.exceptions import (
     ConflictError,
     ResourceNotFoundError,
 )
-from .models import Tenant,TenantMembership
+from .models import Tenant,TenantMembership,Role
 from .isolation import TenantIsolationService
 
 class TenantMembershipService:
@@ -16,48 +16,37 @@ class TenantMembershipService:
         *,
         tenant_id,
         user_id,
+        role: Role,
         status=TenantMembership.Status.ACTIVE,
     ) -> TenantMembership:
-        try:
-            tenant = Tenant.objects.get(
-                id=tenant_id,
+        if role.scope != Role.Scope.TENANT:
+            raise ValueError(
+                "Membership requires a tenant role."
+            )
+        
+        if (
+            role.tenant_id is not None
+            and role.tenant_id != tenant_id
+        ):
+            raise ValueError(
+                "Role does not belong to this tenant."
             )
             
-        except Tenant.DoesNotExist:
-            raise ResourceNotFoundError(
-                message="Tenant not found."
-            )
-            
-        if TenantMembership.objects.filter(
+        membership = TenantMembership.objects.create(
             tenant_id=tenant_id,
             user_id=user_id,
-        ).exists():
-            raise ConflictError(
-                message=(
-                    "User is already a member of this tenant."
-                )
-            )
-            
-        joined_at = (
-            timezone.now()
-            if status == TenantMembership.Status.ACTIVE
-            else None
+            role=role,
+            status=status,
+            joined_at=(
+                timezone.now()
+                if status
+                == TenantMembership.Status.ACTIVE
+                else None
+            ),
         )
         
-        try:
-            return TenantMembership.objects.create(
-                tenant=tenant,
-                user_id=user_id,
-                status=status,
-                joined_at=joined_at,
-            )
-            
-        except IntegrityError:
-            raise ConflictError(
-                message=(
-                    "User is already a member of this tenant."
-                )
-            )
+        return membership
+        
             
     @staticmethod
     @transaction.atomic
@@ -172,6 +161,50 @@ class TenantMembershipService:
 
         membership.save(
             update_fields=["status","updated_at",],
+        )
+        
+        return membership
+    
+    @staticmethod
+    @transaction.atomic
+    def assign_role(
+        *,
+        tenant_id: UUID,
+        role: Role,
+        membership_id,
+    ):
+        if role.scope != Role.Scope.TENANT:
+            raise ValueError(
+                "Only tenant roles can be assigned."
+            )
+        
+        if (
+            role.tenant_id is not None
+            and role.tenant_id != tenant_id
+        ):
+            raise ValueError(
+                "Role does not belong to this tenant."
+            )
+            
+        try:
+            membership = (
+                TenantMembership.objects
+                .select_for_update()
+                .get(
+                    id=membership_id,
+                    tenant_id=tenant_id,
+                )
+            )
+        except TenantMembership.DoesNotExist:
+            raise ResourceNotFoundError(
+                
+            )
+            
+        membership.role = role
+        membership.save(
+            update_fields=[
+                "role","updated_at",
+            ]
         )
         
         return membership
