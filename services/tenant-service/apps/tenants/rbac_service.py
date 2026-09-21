@@ -4,6 +4,11 @@ from .rbac_defaults import (
     DEFAULT_TENANT_ROLES,
 )
 from .models import Permission,Role
+from apps.common.exceptions import (
+    ConflictError,
+    ValidationError,   
+    ResourceNotFoundError,
+)
 
 class RBACService:
     
@@ -102,3 +107,146 @@ class RBACService:
         )
 
         return membership
+    
+    @staticmethod
+    @transaction.atomic
+    def assign_permission(
+        *,
+        role_id,
+        permission_code: str,
+    ) -> Permission:
+        """
+        Assign a permission to a role.
+
+        The operation is idempotent:
+        assigning an already assigned permission does not
+        create a duplicate relationship.
+        """
+        
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found."
+            ) from exc
+            
+        try:
+            permission = Permission.objects.get(
+                code=permission_code
+            )
+        except Permission.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Permission not found."
+            ) from exc
+            
+        role.permissions.add(permission)
+        
+        return permission
+    
+    @staticmethod
+    @transaction.atomic
+    def remove_permission(
+        *,
+        role_id,
+        permission_code: str,
+    ) -> None:
+        """
+        Remove a permission from a role.
+
+        Removing an already absent permission is idempotent.
+        """
+        
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found."
+            ) from exc
+            
+        try:
+            permission = Permission.objects.get(
+                code=permission_code
+            )
+        except Permission.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Permission not found."
+            ) from exc
+            
+        role.permissions.remove(permission)
+        
+    @staticmethod
+    @transaction.atomic
+    def replace_permissions(
+        *,
+        role_id,
+        permission_codes: list[str],
+    ) -> list[Permission]:
+        """
+        Replace all permissions assigned to a role.
+        """
+        
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found."
+            ) from exc
+            
+        normalized_codes = list(
+            dict.fromkeys(
+                code.strip()
+                for code in permission_codes
+                if code and code.strip()
+            )
+        )
+        permissions = list(
+            Permission.objects.filter(
+                code__in=normalized_codes
+            )
+        )
+        found_codes = {
+            permission.code for permission in permissions
+        }
+        missing_codes = set(normalized_codes) - found_codes
+        
+        if missing_codes:
+            raise ValidationError(
+                f"Unknown permissions: {', '.join(sorted(missing_codes))}"
+            )
+            
+        role.permissions.set(permissions)
+        
+        return permissions
+    
+    @staticmethod
+    def get_role_permissions(
+        *,
+        role_id,
+    ):
+        """
+        Return all permissions assigned to a role.
+        """
+        
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found."
+            ) from exc
+            
+        return role.permissions.all().order_by("code")
+    
+    @staticmethod
+    def has_permission(
+        *,
+        role_id,
+        permission_code: str,
+    ) -> bool:
+        """
+        Check whether a role has a specific permission.
+        """
+        
+        return Permission.objects.filter(
+            code=permission_code,
+            roles__id=role_id,
+        ).exists()
