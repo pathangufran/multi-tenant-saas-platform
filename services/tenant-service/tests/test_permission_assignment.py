@@ -10,10 +10,19 @@ class TestPermissionAssignment:
     def setup_method(self):
         RBACService.initialize_permissions()
 
+        from apps.tenants.models import Tenant
+
+        self.tenant = Tenant.objects.create(
+            name="Test Corporation",
+            slug="test-corporation",
+            status=Tenant.Status.ACTIVE,
+        )
+
         self.role = Role.objects.create(
             name="Custom Manager",
             code="CUSTOM_MANAGER",
             scope=Role.Scope.TENANT,
+            tenant=self.tenant,
             is_system_role=False,
         )
 
@@ -242,6 +251,7 @@ class TestPermissionAssignment:
             name="Another Role",
             code="ANOTHER_ROLE",
             scope=Role.Scope.TENANT,
+            tenant=self.tenant,
             is_system_role=False,
         )
 

@@ -4,7 +4,7 @@ from apps.common.exceptions import (
     ConflictError,
     ResourceNotFoundError,
 )
-from apps.tenants.models import Tenant, TenantMembership
+from apps.tenants.models import Tenant, TenantMembership, Role
 from apps.tenants.membership_service import (
     TenantMembershipService,
 )
@@ -31,6 +31,11 @@ class TestTenantMembershipService:
                 user_id=self.user_id,
             )
         )
+        self.role = Role.objects.create(
+            name="Member",
+            scope=Role.Scope.TENANT,
+            tenant=self.tenant,
+        )
         
     def teardown_method(self):
         clear_tenant_context(self.context_token)
@@ -40,11 +45,13 @@ class TestTenantMembershipService:
             TenantMembershipService.create_membership(
                 tenant_id=self.tenant.id,
                 user_id=self.user_id,
+                role=self.role,
             )
         )
 
         assert membership.tenant_id == self.tenant.id
         assert membership.user_id == self.user_id
+        assert membership.role_id == self.role.id
         assert membership.status == (
             TenantMembership.Status.ACTIVE
         )
@@ -55,6 +62,7 @@ class TestTenantMembershipService:
             TenantMembershipService.create_membership(
                 tenant_id=self.tenant.id,
                 user_id=self.user_id,
+                role=self.role,
                 status=TenantMembership.Status.INVITED,
             )
         )
@@ -68,15 +76,14 @@ class TestTenantMembershipService:
         TenantMembershipService.create_membership(
             tenant_id=self.tenant.id,
             user_id=self.user_id,
+            role=self.role,
         )
 
-        with pytest.raises(
-            ConflictError,
-            match="already a member",
-        ):
+        with pytest.raises(ConflictError,match="already a member",):
             TenantMembershipService.create_membership(
                 tenant_id=self.tenant.id,
                 user_id=self.user_id,
+                role=self.role,
             )
 
     def test_unknown_tenant_raises_not_found(self):
@@ -84,6 +91,7 @@ class TestTenantMembershipService:
             TenantMembershipService.create_membership(
                 tenant_id=uuid.uuid4(),
                 user_id=self.user_id,
+                role=self.role,
             )
 
     def test_create_membership_does_not_require_auth_database(self):
@@ -93,6 +101,7 @@ class TestTenantMembershipService:
             TenantMembershipService.create_membership(
                 tenant_id=self.tenant.id,
                 user_id=random_user_id,
+                role=self.role,
             )
         )
 

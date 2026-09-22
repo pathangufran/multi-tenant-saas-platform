@@ -3,8 +3,11 @@ from .rbac_defaults import (
     DEFAULT_PERMISSIONS,
     DEFAULT_TENANT_ROLES,
 )
-from .models import Permission,Role
+from .models import (
+    TenantMembership,Permission,Role
+)
 from apps.common.exceptions import (
+    AuthorizationError,
     ConflictError,
     ValidationError,   
     ResourceNotFoundError,
@@ -243,10 +246,177 @@ class RBACService:
         permission_code: str,
     ) -> bool:
         """
-        Check whether a role has a specific permission.
+        Check whether a user has a permission
+        within a specific tenant.
         """
         
         return Permission.objects.filter(
             code=permission_code,
             roles__id=role_id,
         ).exists()
+        
+class PermissionCheckService:
+    
+    @staticmethod
+    def has_permission(
+        *,
+        user_id,
+        tenant_id,
+        permission_code: str,
+    ) -> bool:
+        """
+        Check whether a user has a permission
+        within a specific tenant.
+        """
+        
+        return TenantMembership.objects.filter(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            status=TenantMembership.Status.ACTIVE,
+            role__permissions__code=permission_code,
+        ).exists()
+        
+    @staticmethod
+    def require_permission(
+        *,
+        user_id,
+        tenant_id,
+        permission_code: str,
+    ) -> None:
+        """
+        Require a user to have a permission.
+
+        Raises AuthorizationError when permission
+        is not granted.
+        """
+        
+        allowed = PermissionCheckService.has_permission(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            permission_code=permission_code,
+        )
+        
+        if not allowed:
+            raise AuthorizationError(
+                f"Permission required: {permission_code}"
+            )
+            
+    @staticmethod
+    def get_user_permissions(
+        *,
+        user_id,
+        tenant_id,
+    ):
+        """
+        Return all permissions available to the user
+        within the specified tenant.
+        """
+        
+        membership = (
+            TenantMembership.objects
+            .filter(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                status=TenantMembership.Status.ACTIVE,
+            )
+            .select_related("role")
+            .prefetch_related("role__permissions")
+            .first()
+        )
+        
+        if membership is None or membership.role is None:
+            return []
+        
+        return (
+            membership.role.permissions
+            .all()
+            .order_by("code")
+        )
+        
+    @staticmethod
+    def get_user_permission_codes(
+        *,
+        user_id,
+        tenant_id,
+    ) -> set[str]:
+        """
+        Return permission codes as a set for efficient
+        repeated permission checks.
+        """
+        
+        permissions = PermissionCheckService.get_user_permissions(
+            user_id=user_id,
+            tenant_id=tenant_id,
+        )
+        
+        return {
+            permission.code
+            for permission in permissions
+        }
+        
+    @staticmethod
+    def check_any_permission(
+        *,
+        user_id,
+        tenant_id,
+        permission_codes: list[str],
+    ) -> bool:
+        """
+        Return True when the user has at least one
+        of the requested permissions.
+        """
+        
+        if not permission_codes:
+            return False
+        
+        return (
+            PermissionCheckService
+            ._membership_queryset(
+                user_id=user_id,
+                tenant_id=tenant_id,
+            )
+            .filter(
+                role__permissions__code__in=permission_codes,
+            )
+            .exists()
+        )
+        
+    @staticmethod
+    def check_all_permissions(
+        *,
+        user_id,
+        tenant_id,
+        permission_codes: list[str],
+    ) -> bool:
+        """
+        Return True only when the user has every
+        requested permission.
+        """
+        
+        if not permission_codes:
+            return True
+        
+        user_permissions = (
+            PermissionCheckService
+            .get_user_permission_codes(
+                user_id=user_id,
+                tenant_id=tenant_id,
+            )
+        )
+        
+        return set(permission_codes).issubset(
+            user_permissions
+        )
+        
+    @staticmethod
+    def _membership_queryset(
+        *,
+        user_id,
+        tenant_id,
+    ):
+        return TenantMembership.objects.filter(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            status=TenantMembership.Status.ACTIVE,
+            role__isnull=False,
+        )

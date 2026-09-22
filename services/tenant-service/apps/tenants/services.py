@@ -75,9 +75,10 @@ class TenantService:
             .filter(
                 memberships__user_id=user_id,
                 memberships__status=(
-                    TenantMembership.Status.ACTIVE
+                    TenantMembership.Status.ACTIVE,
                 )
             )
+            .distinct()
         )
         
     @staticmethod

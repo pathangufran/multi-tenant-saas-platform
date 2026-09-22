@@ -19,6 +19,14 @@ class TenantMembershipService:
         role: Role,
         status=TenantMembership.Status.ACTIVE,
     ) -> TenantMembership:
+        
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Tenant not found."
+            ) from exc
+        
         if role.scope != Role.Scope.TENANT:
             raise ValueError(
                 "Membership requires a tenant role."
@@ -32,18 +40,23 @@ class TenantMembershipService:
                 "Role does not belong to this tenant."
             )
             
-        membership = TenantMembership.objects.create(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            role=role,
-            status=status,
-            joined_at=(
-                timezone.now()
-                if status
-                == TenantMembership.Status.ACTIVE
-                else None
-            ),
-        )
+        try:
+            membership = TenantMembership.objects.create(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                role=role,
+                status=status,
+                joined_at=(
+                    timezone.now()
+                    if status
+                    == TenantMembership.Status.ACTIVE
+                    else None
+                ),
+            )
+        except IntegrityError as exc:
+            raise ConflictError(
+                "User is already a member of this tenant."
+            ) from exc
         
         return membership
         
