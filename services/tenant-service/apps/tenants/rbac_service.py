@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import transaction,IntegrityError
 from .rbac_defaults import (
     DEFAULT_PERMISSIONS,
     DEFAULT_TENANT_ROLES,
@@ -12,6 +12,7 @@ from apps.common.exceptions import (
     ValidationError,   
     ResourceNotFoundError,
 )
+from django.db.models import Q
 
 class RBACService:
     
@@ -420,3 +421,276 @@ class PermissionCheckService:
             status=TenantMembership.Status.ACTIVE,
             role__isnull=False,
         )
+        
+class TenantRoleService:
+    
+    @staticmethod
+    def list_roles(*,tenant_id,):
+        """
+        Return all tenant-scoped roles belonging to a tenant,
+        plus predefined system tenant roles.
+        """
+        
+        return (
+            Role.objects
+            .filter(
+                scope=Role.Scope.TENANT,
+            )
+            .filter(
+                Q(
+                    tenant_id=tenant_id
+                ) |
+                Q(
+                    tenant_id__isnull=True,
+                    is_system_role=True,
+                )
+            )
+            .prefetch_related("permissions")
+            .order_by(
+                "is_system_role",
+                "code"
+            ),
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def create_role(
+        *,
+        tenant_id,
+        name: str,
+        code: str,
+        description: str = "",
+        permission_codes=None,
+    ):
+        """
+        Create a custom tenant role.
+        """
+        
+        normalized_code = code.strip().upper()
+        
+        if not normalized_code:
+            raise ValidationError(
+                "Role code cannot be empty."
+            )
+            
+        if not name.strip():
+            raise ValidationError(
+                "Role name cannot be empty."
+            )
+            
+        if Role.objects.filter(
+            tenant_id=tenant_id,
+            code=normalized_code,
+            scope=Role.Scope.TENANT,
+        ).exists():
+            raise ConflictError(
+                "A role with this code already exists."
+            )
+            
+        permissions = []
+        
+        if permission_codes:
+            permission_codes = list(
+                dict.fromkeys(
+                    code.strip()
+                    for code in permission_codes
+                    if code and code.strip()
+                )
+            )
+            
+            permissions = list(
+                Permission.objects.filter(
+                    code__in=permission_codes
+                )
+            )
+            
+            found_codes = (
+                permission.code
+                for permission in permissions
+            )
+            
+            missing_codes = (
+                set(permission_codes) - found_codes
+            )
+            
+            if missing_codes:
+                raise ValidationError(
+                    "Unknown permissions: "
+                    + ", ".join(
+                        sorted(missing_codes)
+                    )
+                )
+        
+        try:
+            role = Role.objects.create(
+                tenant_id=tenant_id,
+                name=name.strip(),
+                code=normalized_code,
+                scope=Role.Scope.TENANT,
+                description=description.strip(),
+                is_system_role=False,
+            )
+        except IntegrityError as exc:
+            raise ConflictError(
+                "A role with this code already exists."
+            ) from exc
+            
+        if permissions:
+            role.permissions.set(permissions)
+            
+        return 
+    
+    @staticmethod
+    @transaction.atomic
+    def update_role(
+        *,
+        tenant_id,
+        role_id,
+        name=None,
+        description=None,
+        permission_codes=None,
+    ):
+        """
+        Update a custom tenant role.
+        """
+        
+        role = TenantRoleService._get_custom_role(
+            tenant_id=tenant_id,
+            role_id=role_id,
+        )
+        
+        if name is not None:
+            normalized_name = name.strip()
+            
+            if not normalized_name:
+                raise ValidationError(
+                    
+                )
+                
+            role.name = normalized_name
+            
+        if description is not None:
+            role.description = description.strip()
+            
+        role.save()
+        
+        if permission_codes is not None:
+            normalized_codes = list(
+                dict.fromkeys(
+                    code.strip()
+                    for code in permission_codes
+                    if code and code.strip()
+                )
+            )
+            
+            permissions = list(
+                Permission.objects.filter(
+                    code__in=normalized_codes
+                )
+            )
+            
+            found_codes = (
+                permission.code
+                for permission in permissions
+            )
+            
+            missing_codes = (
+                set(normalized_codes) - found_codes
+            )
+
+            if missing_codes:
+                raise ValidationError(
+                    "Unknown permissions: "
+                    + ", ".join(
+                        sorted(missing_codes)
+                    )
+                )
+
+            role.permissions.set(permissions)
+            
+        return role
+    
+    @staticmethod
+    @transaction.atomic
+    def delete_role(
+        *,
+        tenant_id,
+        role_id,
+    ):
+        """
+        Delete a custom tenant role.
+
+        System roles cannot be deleted.
+        """
+        
+        role = TenantRoleService._get_custom_role(
+            tenant_id=tenant_id,
+            role_id=role_id,
+        )
+        
+        role.delete()
+        
+    @staticmethod
+    def get_role(
+        *,
+        tenant_id,
+        role_id,
+    ):
+        """
+        Return a role visible to the tenant.
+
+        This includes:
+        - custom tenant roles
+        - system tenant roles
+        """
+
+        try:
+            role = (
+                Role.objects
+                .prefetch_related("permissions")
+                .get(
+                    Q(
+                        id=role_id,
+                        scope=Role.Scope.TENANT,
+                        tenant_id=tenant_id,
+                    )
+                    | 
+                    Q(
+                        id=role_id,
+                        scope=Role.Scope.TENANT,
+                        tenant_id__isnull=True,
+                        is_system_role=True,
+                    )
+                )
+            )
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found."
+            ) from exc   
+            
+    @staticmethod
+    def _get_custom_role(
+        *,
+        tenant_id,
+        role_id,
+    ):
+        """
+        Return a tenant-owned custom role.
+
+        System roles and roles belonging to another tenant
+        cannot be modified through this service.
+        """
+        
+        try:
+            role = Role.objects.get(
+                id=role_id,
+                tenant_id=tenant_id,
+                scope=Role.Scope.TENANT,
+                is_system_role=False,
+            )
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Custom tenant role not found."
+            ) from exc
+            
+        return role
