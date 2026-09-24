@@ -313,3 +313,82 @@ class Role(models.Model):
 
     def __str__(self):
         return self.code
+    
+class ObjectPermission(models.Model):
+    class SubjectType(models.TextChoices):
+        USER = "user", "User"
+        ROLE = "role", "Role"
+        
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="object_permissions",
+    )
+    subject_type = models.CharField(
+        max_length=20,
+        choices=SubjectType.choices,
+    )
+    subject_id = models.UUIDField()
+    resource_type = models.CharField(
+        max_length=100,
+    )
+    resource_id = models.UUIDField()
+    permission = models.ForeignKey(
+        Permission,
+        on_delete=models.CASCADE,
+        related_name="object_permissions",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    
+    class Meta:
+        ordering = ["resource_type", "resource_id", "permission__code"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "tenant",
+                    "subject_type",
+                    "subject_id",
+                    "resource_type",
+                    "resource_id",
+                    "permission",
+                ],
+                name="object_permission_unique",
+            ),
+        ]
+        
+        indexes = [
+            models.Index(
+                fields=[
+                    "tenant",
+                    "resource_type",
+                    "resource_id",
+                ],
+                name="obj_perm_resource_idx",
+            ),
+            models.Index(
+                fields=[
+                    "tenant",
+                    "subject_type",
+                    "subject_id",
+                ],
+                name="obj_perm_subject_idx",
+            ),
+        ]
+        
+    def __str__(self):
+        return (
+            f"{self.subject_type}:{self.subject_id} "
+            f"→ {self.resource_type}:{self.resource_id} "
+            f"→ {self.permission.code}"
+        )

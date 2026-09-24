@@ -4,7 +4,7 @@ from .rbac_defaults import (
     DEFAULT_TENANT_ROLES,
 )
 from .models import (
-    TenantMembership,Permission,Role
+    TenantMembership,Permission,Role,ObjectPermission
 )
 from apps.common.exceptions import (
     AuthorizationError,
@@ -694,3 +694,286 @@ class TenantRoleService:
             ) from exc
             
         return role
+    
+class ObjectPermissionService:
+    
+    @staticmethod
+    @transaction.atomic
+    def grant_user_permission(
+        *,
+        tenant_id,
+        user_id,
+        resource_type: str,
+        resource_id,
+        permission_code: str,
+    ):
+        """
+        Grant a permission on a specific resource
+        directly to a user.
+        """
+        
+        ObjectPermissionService._validate_resource(
+            resource_type=resource_type,
+            resource_id=resource_id,
+        )
+        
+        permission = (
+            ObjectPermissionService
+            ._get_permission(permission_code)
+        )
+        
+        ObjectPermissionService._ensure_active_membership(
+            tenant_id=tenant_id,
+            user_id=user_id,
+        )
+        
+        object_permission,_ = (
+            ObjectPermission.objects.get_or_create(
+                tenant_id=tenant_id,
+                subject_type=(
+                    ObjectPermission.SubjectType.USER
+                ),
+                subject_id=user_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                permission=permission,
+            )
+        )
+        
+        return object_permission
+    
+    @staticmethod
+    @transaction.atomic
+    def grant_role_permission(
+        *,
+        tenant_id,
+        role_id,
+        resource_type: str,
+        resource_id,
+        permission_code: str,
+    ):
+        """
+        Grant a permission on a specific resource
+        to a tenant role.
+        """
+        
+        ObjectPermissionService._validate_resource(
+            resource_type=resource_type,
+            resource_id=resource_id,
+        )
+        
+        permission = (
+            ObjectPermissionService
+            ._get_permission(permission_code)
+        )
+        
+        try:
+            role = Role.objects.get(
+                id=role_id,
+                scope=Role.Scope.TENANT,
+            )
+        except Role.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Role not found"
+            ) from exc
+            
+        if (
+            not role.is_system_role
+            and role.tenant_id != tenant_id
+        ):
+            raise ResourceNotFoundError(
+                "Role not found."
+            )
+            
+        object_permission,_ = (
+            ObjectPermission.objects.get_or_create(
+                tenant_id=tenant_id,
+                subject_type=(
+                    ObjectPermission.SubjectType.ROLE
+                ),
+                subject_id=role.id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                permission=permission,
+            )
+        )
+        
+        return object_permission
+    
+    @staticmethod
+    @transaction.atomic
+    def revoke_user_permission(
+        *,
+        tenant_id,
+        user_id,
+        resource_type: str,
+        resource_id,
+        permission_code: str,
+    ):
+        permission = (
+            ObjectPermissionService
+            ._get_permission(permission_code)
+        )
+        
+        deleted,_ = (
+            ObjectPermission.objects.filter(
+                tenant_id=tenant_id,
+                subject_type=(
+                    ObjectPermission.SubjectType.USER
+                ),
+                subject_id=user_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                permission=permission,
+            ).delete()
+        )
+        
+        return deleted > 0
+    
+    @staticmethod
+    @transaction.atomic
+    def revoke_role_permission(
+        *,
+        tenant_id,
+        role_id,
+        resource_type: str,
+        resource_id,
+        permission_code: str,
+    ):
+        permission = (
+            ObjectPermissionService
+            ._get_permission(permission_code)
+        )
+        
+        deleted,_ = (
+            ObjectPermission.objects.filter(
+                tenant_id=tenant_id,
+                subject_type=(
+                    ObjectPermission.SubjectType.ROLE
+                ),
+                subject_id=role_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                permission=permission,
+            ).delete()
+        )
+        
+        return deleted > 0
+    
+    @staticmethod
+    def has_object_permission(
+        *,
+        tenant_id,
+        user_id,
+        resource_type: str,
+        resource_id,
+        permission_code: str,
+    ) -> bool:
+        """
+        Check object-level permission.
+
+        Access is granted when either:
+        1. The user has the permission directly, or
+        2. One of the user's roles has the object permission.
+        """
+        
+        permission = (
+            ObjectPermissionService
+            ._get_permission(permission_code)
+        )
+        
+        if not ObjectPermissionService._has_active_membership(
+            tenant_id=tenant_id,
+            user_id=user_id,
+        ):
+            return False
+        
+        direct_access = ObjectPermission.objects.filter(
+            tenant_id=tenant_id,
+            subject_type=(
+                ObjectPermission.SubjectType.USER
+            ),
+            subject_id=user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            permission=permission,
+        ).exists()
+        
+        if direct_access:
+            return True
+        
+        role_ids = TenantMembership.objects.filter(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            status=TenantMembership.Status.ACTIVE,
+            role__isnull=False,
+        ).values_list("role_id",flat=True,)
+        
+        return ObjectPermission.objects.filter(
+            tenant_id=tenant_id,
+            subject_type=(
+                ObjectPermission.SubjectType.ROLE
+            ),
+            subject_id__in=role_ids,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            permission=permission,
+        ).exists()
+        
+    @staticmethod
+    def _get_permission(permission_code):
+        try:
+            return Permission.objects.get(
+                code=permission_code,
+            )
+        except Permission.DoesNotExist as exc:
+            raise ResourceNotFoundError(
+                "Permission not found."
+            ) from exc
+            
+    @staticmethod
+    def _has_active_membership(
+        *,
+        tenant_id,
+        user_id,
+    ):
+        return TenantMembership.objects.filter(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            status=TenantMembership.Status.ACTIVE,
+        ).exists()
+        
+    @staticmethod
+    def _ensure_active_membership(
+        *,
+        tenant_id,
+        user_id,
+    ):
+        if not ObjectPermissionService._has_active_membership(
+            tenant_id=tenant_id,
+            user_id=user_id,
+        ):
+            raise AuthorizationError(
+                "User does not have an active tenant membership."
+            )
+            
+    @staticmethod
+    def _validate_resource(
+        *,
+        resource_type,
+        resource_id,
+    ):
+        if not resource_type:
+            raise ValidationError(
+                "Resource type is required."
+            )
+            
+        if not str(resource_type).strip():
+            raise ValidationError(
+                "Resource type cannot be empty."
+            )
+            
+        if not resource_id:
+            raise ValidationError(
+                "Resource ID is required."
+            )
