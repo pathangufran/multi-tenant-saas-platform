@@ -32,6 +32,14 @@ class TestMembershipRoleManagement:
             slug=f"tenant-b-{uuid.uuid4().hex[:8]}",
             status=Tenant.Status.ACTIVE,
         )
+        
+        RBACService.initialize_tenant_roles(
+            tenant=self.tenant
+        )
+
+        RBACService.initialize_tenant_roles(
+            tenant=self.other_tenant
+        )
 
         self.user_id = uuid.uuid4()
         self.other_user_id = uuid.uuid4()
@@ -51,12 +59,14 @@ class TestMembershipRoleManagement:
         )
 
         self.owner_role = Role.objects.get(
+            tenant=self.tenant,
             code="OWNER",
             scope=Role.Scope.TENANT,
             is_system_role=True,
         )
 
         self.viewer_role = Role.objects.get(
+            tenant=self.tenant,
             code="VIEWER",
             scope=Role.Scope.TENANT,
             is_system_role=True,

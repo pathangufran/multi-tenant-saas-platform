@@ -140,3 +140,57 @@ DEFAULT_TENANT_ROLES = {
         "tasks.read",
     ],
 }
+
+PLATFORM_ROLE_DEFINITIONS = {
+    "SUPER_ADMIN": {
+        "name": "Super Admin",
+        "description": (
+            "Full platform-level administrative access."
+        ),
+        "permissions": [
+            "tenant.read",
+            "tenant.update",
+            "users.read",
+            "users.create",
+            "users.update",
+            "users.delete",
+            "projects.read",
+            "projects.create",
+            "projects.update",
+            "projects.delete",
+            "tasks.read",
+            "tasks.create",
+            "tasks.update",
+            "tasks.delete",
+            "billing.read",
+            "billing.manage",
+        ],
+    },
+    "SUPPORT": {
+        "name": "Support",
+        "description": (
+            "Platform support access for operational assistance."
+        ),
+        "permissions": [
+            "tenant.read",
+            "users.read",
+            "projects.read",
+            "tasks.read",
+            "billing.read",
+        ],
+    },
+    "OPERATIONS": {
+        "name": "Operations",
+        "description": (
+            "Platform operations access."
+        ),
+        "permissions": [
+            "tenant.read",
+            "tenant.update",
+            "users.read",
+            "projects.read",
+            "tasks.read",
+            "billing.read",
+        ],
+    },
+}

@@ -21,14 +21,20 @@ class TestTenantRoleManagement:
 
         self.tenant = Tenant.objects.create(
             name="Tenant A",
-            slug=f"tenant-a-{uuid.uuid4().hex[:8]}",
-            status=Tenant.Status.ACTIVE,
+            slug="tenant-a",
         )
 
         self.other_tenant = Tenant.objects.create(
             name="Tenant B",
-            slug=f"tenant-b-{uuid.uuid4().hex[:8]}",
-            status=Tenant.Status.ACTIVE,
+            slug="tenant-b",
+        )
+
+        RBACService.initialize_tenant_roles(
+            tenant=self.tenant
+        )
+
+        RBACService.initialize_tenant_roles(
+            tenant=self.other_tenant
         )
 
     def test_list_roles_returns_system_roles(self):

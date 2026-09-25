@@ -121,9 +121,7 @@ class TenantMembership(TenantScopedModel):
         
     def __str__(self):
         role_code = (
-            self.role.code
-            if self.role
-            else "NO_ROLE"
+            self.role.code if self.role else "NO_ROLE"
         )
         return f"{self.user_id} - {self.tenant.name} - {role_code}" 
     
@@ -391,4 +389,51 @@ class ObjectPermission(models.Model):
             f"{self.subject_type}:{self.subject_id} "
             f"→ {self.resource_type}:{self.resource_id} "
             f"→ {self.permission.code}"
+        )
+        
+class PlatformRoleAssignment(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user_id = models.UUIDField(
+        db_index=True,
+    )
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.PROTECT,
+        related_name="platform_assignments",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    
+    class Meta:
+        ordering = ["created_at"]
+        
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "user_id","role",
+                ],
+                name="platform_user_role_unique",
+            ),
+        ]
+        
+        indexes = [
+            models.Index(
+                fields=[
+                    "user_id","role",
+                ],
+                name="platform_user_role_idx",
+            ),
+        ]
+        
+    def __str__(self):
+        return (
+            f"{self.user_id} → {self.role.code}"
         )

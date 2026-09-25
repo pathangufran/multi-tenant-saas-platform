@@ -201,7 +201,7 @@ class TenantMembershipRoleService:
                 membership = (
                     TenantMembership.objects
                     .select_for_update()
-                    .select_related("role")
+                    # .select_related("role")
                     .get(
                         id=membership_id,
                         tenant_id=tenant_id,
@@ -328,28 +328,11 @@ class TenantMembershipRoleService:
         return membership.role
 
     @staticmethod
-    def _validate_role(
-        *,
-        tenant_id,
-        role,
-    ):
-        """
-        Validate that a role can be assigned to a
-        membership belonging to the tenant.
-        """
-
+    def _validate_role(role, tenant_id):
         if role.scope != Role.Scope.TENANT:
             raise ValidationError(
                 "Platform roles cannot be assigned to tenant memberships."
             )
-
-        if role.is_system_role:
-            if role.tenant_id is not None:
-                raise ValidationError(
-                    "System tenant roles cannot belong to a tenant."
-                )
-
-            return
 
         if role.tenant_id != tenant_id:
             raise ResourceNotFoundError(
