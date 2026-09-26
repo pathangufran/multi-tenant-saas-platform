@@ -79,6 +79,31 @@ DEFAULT_PERMISSIONS = [
         "name": "Manage Billing",
         "description": "Manage tenant billing.",
     },
+    {
+        "code": "roles.read",
+        "name": "Read Roles",
+        "description": "View tenant roles.",
+    },
+    {
+        "code": "roles.create",
+        "name": "Create Roles",
+        "description": "Create tenant roles.",
+    },
+    {
+        "code": "roles.update",
+        "name": "Update Roles",
+        "description": "Update tenant roles.",
+    },
+    {
+        "code": "roles.delete",
+        "name": "Delete Roles",
+        "description": "Delete tenant roles.",
+    },
+    {
+        "code": "roles.assign",
+        "name": "Assign Roles",
+        "description": "Assign roles to tenant memberships.",
+    },
 ]
 
 DEFAULT_TENANT_ROLES = {

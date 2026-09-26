@@ -1,4 +1,4 @@
-from .models import Tenant,Permission
+from .models import Tenant,Permission,Role,PlatformRoleAssignment
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 
@@ -110,3 +110,197 @@ class PermissionResponseSerializer(
     code = serializers.CharField()
     name = serializers.CharField()
     description = serializers.CharField()
+    
+class RoleResponseSerializer(serializers.Serializer):
+    
+    permissions = PermissionResponseSerializer(
+        many=True,
+        read_only=True,
+    )
+    
+    class Meta:
+        model = Role
+        fields = [
+            "id",
+            "name",
+            "code",
+            "scope",
+            "description",
+            "is_system_role",
+            "tenant",
+            "permissions",
+            "created_at",
+            "updated_at",
+        ]
+        
+class TenantRoleCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        max_length=100,
+    )
+    code = serializers.CharField(
+        max_length=100,
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+    permission_codes = serializers.ListField(
+        child=serializers.CharField(
+            max_length=100,
+        ),
+        required=False,
+        default=list,
+    )
+    
+    def validate_name(self,value):
+        value = value.strip()
+        
+        if not value:
+            raise ValidationError(
+                "Role name cannot be empty."
+            )
+            
+        return value
+    
+    def validate_code(self,value):
+        value = value.strip().upper()
+        
+        if not value:
+            raise ValidationError(
+                "Role code cannot be empty."
+            )
+            
+        return value
+    
+    def validate_permission_codes(self,value):
+        normalized = []
+        
+        for code in value:
+            code = code.strip()
+            
+            if not code:
+                raise ValidationError(
+                    "Permission codes cannot be empty."
+                )
+                
+            normalized.append(code)
+            
+        if len(normalized) != len(set(normalized)):
+            raise ValidationError(
+                "Permission codes must be unique."
+            )
+            
+        return normalized
+    
+class TenantRoleUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        max_length=100,
+        required=False,
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+    permission_codes = serializers.ListField(
+        child=serializers.CharField(
+            max_length=100,
+        ),
+        required=False,
+    )
+    
+    def validate_name(self,value):
+        value = value.strip()
+        
+        if not value:
+            raise ValidationError(
+                "Role name cannot be empty."
+            )
+            
+        return value
+    
+    def validate_permission_codes(self,value):
+        normalized = []
+        
+        for code in value:
+            code = code.strip()
+            
+            if not code:
+                raise ValidationError(
+                    "Permission codes cannot be empty."
+                )
+                
+            normalized.append(code)
+            
+        if len(normalized) != len(set(normalized)):
+            raise ValidationError(
+                "Permission codes must be unique."
+            )
+            
+        return normalized
+    
+class MembershipRoleSerializer(serializers.Serializer):
+    role_id = serializers.UUIDField()
+    
+class ObjectPermissionCreateSerializer(
+    serializers.Serializer
+):
+    user_id = serializers.UUIDField()
+    resource_type = serializers.CharField(
+        max_length=100,
+    )
+    resource_id = serializers.UUIDField()
+    permission_code = serializers.CharField(
+        max_length=100,
+    )
+    
+    def validate_resource_type(self,value):
+        value = value.strip()
+        
+        if not value:
+            raise ValidationError(
+                "Resource type cannot be empty."
+            )
+            
+        return value
+    
+    def validate_permission_code(self,value):
+        value = value.strip()
+        
+        if not value:
+            raise ValidationError(
+                "Permission code cannot be empty."
+            )
+            
+        return value
+    
+class RoleObjectPermissionCreateSerializer(
+    serializers.Serializer
+):
+    role_id = serializers.UUIDField()
+    resource_type = serializers.CharField(
+        max_length=100,
+    )
+    resource_id = serializers.UUIDField()
+    permission_code = serializers.CharField(
+        max_length=100,
+    )
+    
+    def validate_resource_type(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Resource type cannot be empty."
+            )
+
+        return value
+    
+    def validate_permission_code(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Permission code cannot be empty."
+            )
+
+        return value

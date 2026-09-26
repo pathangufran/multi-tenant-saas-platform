@@ -6,6 +6,11 @@ from .views import (
     TenantActivateView,
     TenantDeactivateView,
     TenantSuspendView,
+    MembershipRoleView,
+    RoleObjectPermissionView,
+    TenantRoleDetailView,
+    TenantRoleListCreateView,
+    UserObjectPermissionView,
 )
 
 urlpatterns = [
@@ -38,5 +43,30 @@ urlpatterns = [
         "<uuid:tenant_id>/deactivate/",
         TenantDeactivateView.as_view(),
         name="tenant-deactivate",
+    ),
+    path(
+        "roles/",
+        TenantRoleListCreateView.as_view(),
+        name="rbac-role-list-create",
+    ),
+    path(
+        "roles/<uuid:role_id>/",
+        TenantRoleDetailView.as_view(),
+        name="rbac-role-detail",
+    ),
+    path(
+        "memberships/<uuid:membership_id>/role/",
+        MembershipRoleView.as_view(),
+        name="rbac-membership-role",
+    ),
+    path(
+        "object-permissions/users/",
+        UserObjectPermissionView.as_view(),
+        name="rbac-user-object-permission",
+    ),
+    path(
+        "object-permissions/roles/",
+        RoleObjectPermissionView.as_view(),
+        name="rbac-role-object-permission",
     ),
 ]
