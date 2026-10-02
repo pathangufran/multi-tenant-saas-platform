@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'apps.common',
     'apps.projects',
     'apps.teams',
+    'apps.tasks',
 ]
 
 MIDDLEWARE = [

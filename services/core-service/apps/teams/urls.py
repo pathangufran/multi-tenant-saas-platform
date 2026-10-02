@@ -19,7 +19,7 @@ urlpatterns = [
         name="team-list",
     ),
     path(
-        "<uuid:team_id>/tetails/",
+        "<uuid:team_id>/details/",
         TeamDetailView.as_view(),
         name="team-details",
     ),

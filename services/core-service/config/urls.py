@@ -27,4 +27,8 @@ urlpatterns = [
         'api/v1/teams/',
         include('apps.teams.urls'),
     ),
+    path(
+        'api/v1/tasks/',
+        include('apps.tasks.urls'),
+    ),
 ]
