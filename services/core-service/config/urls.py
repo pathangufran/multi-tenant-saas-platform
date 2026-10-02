@@ -39,4 +39,8 @@ urlpatterns = [
         'api/v1/attachments/',
         include('apps.attachments.urls'),
     ),
+    path(
+        'api/v1/tags/',
+        include('apps.tags.urls'),
+    ),
 ]

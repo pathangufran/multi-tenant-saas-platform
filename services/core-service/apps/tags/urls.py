@@ -1,0 +1,54 @@
+from django.urls import path
+from .views import (
+    TagCreateView,
+    TagListView,
+    TagDetailView,
+    TagUpdateView,
+    TagDeleteView,
+    TaskTagCreateView,
+    TaskTagListView,
+    TaskTagDeleteView,
+)
+
+urlpatterns = [
+    path(
+        "",
+        TagCreateView.as_view(),
+        name="tag-create",
+    ),
+    path(
+        "list/",
+        TagListView.as_view(),
+        name="tag-list",
+    ),
+    path(
+        "<uuid:tag_id>/details/",
+        TagDetailView.as_view(),
+        name="tag-details",
+    ),
+    path(
+        "<uuid:tag_id>/update/",
+        TagUpdateView.as_view(),
+        name="tag-update",
+    ),
+    path(
+        "<uuid:tag_id>/delete/",
+        TagDeleteView.as_view(),
+        name="tag-delete",
+    ),
+    path(
+        "tasks/<uuid:task_id>/tags/",
+        TaskTagCreateView.as_view(),
+        name="task-tag-create",
+    ),
+    path(
+        "tasks/<uuid:task_id>/tags/list/",
+        TaskTagListView.as_view(),
+        name="task-tag-list",
+    ),
+    path(
+        "tasks/<uuid:task_id>/tags/<uuid:tag_id>/delete/",
+        TaskTagDeleteView.as_view(),
+        name="task-tag-delete",
+    ),
+]
