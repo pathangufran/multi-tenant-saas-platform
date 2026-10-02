@@ -35,4 +35,8 @@ urlpatterns = [
         'api/v1/comments/',
         include('apps.comments.urls'),
     ),
+    path(
+        'api/v1/attachments/',
+        include('apps.attachments.urls'),
+    ),
 ]
