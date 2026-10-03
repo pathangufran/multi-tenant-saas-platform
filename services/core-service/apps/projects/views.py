@@ -9,10 +9,15 @@ from .serializers import (
     ProjectResponseSerializer,
 )
 from .services import ProjectService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class ProjectCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "project.create"
     
     def post(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -37,7 +42,11 @@ class ProjectCreateView(APIView):
         
 class ProjectListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "project.read"
     
     def get(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -57,7 +66,11 @@ class ProjectListView(APIView):
         
 class ProjectDetailView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "project.read"
     
     def get(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
@@ -75,7 +88,12 @@ class ProjectDetailView(APIView):
         
 class ProjectUpdateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "project.update"
+    
     
     def patch(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
@@ -100,7 +118,11 @@ class ProjectUpdateView(APIView):
         
 class ProjectDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "project.delete"
     
     def delete(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id

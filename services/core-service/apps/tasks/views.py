@@ -8,10 +8,15 @@ from .serializers import (
     TaskResponseSerializer,
 )
 from .services import TaskService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class ProjectTaskCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tasks.create"
     
     def post(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
@@ -37,7 +42,11 @@ class ProjectTaskCreateView(APIView):
         
 class ProjectTaskListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tasks.read"
     
     def get(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
@@ -58,7 +67,11 @@ class ProjectTaskListView(APIView):
         
 class ProjectTaskDetailsView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,
+    ]
+    required_permission = "tasks.read"
     
     def get(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -76,7 +89,11 @@ class ProjectTaskDetailsView(APIView):
         
 class ProjectTaskUpdateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tasks.update"
     
     def patch(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -101,7 +118,11 @@ class ProjectTaskUpdateView(APIView):
         
 class ProjectTaskDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tasks.delete"
     
     def delete(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id

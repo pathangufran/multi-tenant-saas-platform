@@ -147,16 +147,21 @@ class TestTagService:
             name="Backend",
         )
 
-        task_tag = TagService.attach_tag_to_task(
+        tag_result = TagService.attach_tag_to_task(
             tenant_id=tenant_id,
             task_id=task.id,
             tag_id=tag.id,
         )
 
-        assert task_tag.id is not None
-        assert task_tag.tenant_id == tenant_id
-        assert task_tag.task_id == task.id
-        assert task_tag.tag_id == tag.id
+        assert tag_result.id == tag.id
+        assert tag_result.tenant_id == tenant_id
+        assert tag_result.name == "Backend"
+
+        assert TaskTag.objects.filter(
+            tenant_id=tenant_id,
+            task_id=task.id,
+            tag_id=tag.id,
+        ).exists()
 
     def test_attach_non_existing_task_fails(self):
         tenant_id = uuid.uuid4()
@@ -464,9 +469,8 @@ class TestTagService:
             tag_id=tag.id,
         )
 
-        tags = TagService.list_task_tags(
-            tenant_id=tenant_a,
-            task_id=task.id,
-        )
-
-        assert tags.count() == 0
+        with pytest.raises(ResourceNotFoundError, match="Task not found"):
+            tags = TagService.list_task_tags(
+                tenant_id=tenant_a,
+                task_id=task.id,
+            )

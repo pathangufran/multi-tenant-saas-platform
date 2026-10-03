@@ -7,10 +7,15 @@ from .serializers import (
     AttachmentResponseSerializer,
 )
 from .services import AttachmentService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class TaskAttachmentCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "attachments.create"
 
     def post(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -38,7 +43,11 @@ class TaskAttachmentCreateView(APIView):
         
 class TaskAttachmentListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "attachments.read"
         
     def get(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -59,7 +68,11 @@ class TaskAttachmentListView(APIView):
 
 class TaskAttachmentDetailView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "attachments.read"
 
     def get(self,request,attachment_id):
         tenant_id = request.tenant_context.tenant_id
@@ -80,7 +93,11 @@ class TaskAttachmentDetailView(APIView):
 
 class TaskAttachmentDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "attachments.delete"
 
     def delete(self,request,attachment_id):
         tenant_id = request.tenant_context.tenant_id

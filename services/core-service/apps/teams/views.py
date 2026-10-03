@@ -8,10 +8,15 @@ from .serializers import (
     TeamResponseSerializer,
 )
 from .services import TeamService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class TeamCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "teams.create"
     
     def post(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -36,7 +41,11 @@ class TeamCreateView(APIView):
         
 class TeamListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "teams.read"
     
     def get(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -56,7 +65,11 @@ class TeamListView(APIView):
         
 class TeamDetailView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "teams.read"
     
     def get(self,request,team_id):
         tenant_id = request.tenant_context.tenant_id
@@ -74,7 +87,11 @@ class TeamDetailView(APIView):
         
 class TeamUpdateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "teams.update"
     
     def patch(self,request,team_id):
         tenant_id = request.tenant_context.tenant_id
@@ -99,7 +116,11 @@ class TeamUpdateView(APIView):
         
 class TeamDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "teams.delete"
     
     def delete(self,request,team_id):
         tenant_id = request.tenant_context.tenant_id

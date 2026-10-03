@@ -9,10 +9,15 @@ from .serializers import (
     TaskTagCreateSerializer,
 )
 from .services import TagService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class TagCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.create"
 
     def post(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -37,7 +42,11 @@ class TagCreateView(APIView):
         
 class TagListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,
+    ]
+    required_permission = "tags.read"
 
     def get(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -57,7 +66,11 @@ class TagListView(APIView):
 
 class TagDetailView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.read"
 
     def get(self,request,tag_id):
         tenant_id = request.tenant_context.tenant_id
@@ -75,7 +88,11 @@ class TagDetailView(APIView):
 
 class TagUpdateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.update"
 
     def patch(self,request,tag_id):
         tenant_id = request.tenant_context.tenant_id
@@ -100,7 +117,11 @@ class TagUpdateView(APIView):
 
 class TagDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.delete"
 
     def delete(self,request,tag_id):
         tenant_id = request.tenant_context.tenant_id
@@ -116,7 +137,11 @@ class TagDeleteView(APIView):
 
 class TaskTagCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.assign"
 
     def post(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -142,7 +167,11 @@ class TaskTagCreateView(APIView):
 
 class TaskTagListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.read"
 
     def get(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -163,7 +192,11 @@ class TaskTagListView(APIView):
 
 class TaskTagDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "tags.assign"
 
     def delete(self,request,task_id,tag_id):
         tenant_id = request.tenant_context.tenant_id

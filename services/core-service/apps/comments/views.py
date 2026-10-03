@@ -8,10 +8,15 @@ from .serializers import (
     CommentUpdateSerializer,
 )
 from .services import CommentService
+from apps.common.rbac import TenantServiceRBACPermission
 
 class TaskCommentCreateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "comments.create"
 
     def post(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -37,7 +42,11 @@ class TaskCommentCreateView(APIView):
         
 class TaskCommentListView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "comments.read"
     
     def get(self,request,task_id):
         tenant_id = request.tenant_context.tenant_id
@@ -58,7 +67,11 @@ class TaskCommentListView(APIView):
 
 class TaskCommentDetailView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "comments.read"
 
     def get(self,request,comment_id):
         tenant_id = request.tenant_context.tenant_id
@@ -76,7 +89,11 @@ class TaskCommentDetailView(APIView):
 
 class TaskCommentUpdateView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,    
+    ]
+    required_permission = "comments.update"
 
     def patch(self,request,comment_id):
         tenant_id = request.tenant_context.tenant_id
@@ -101,7 +118,11 @@ class TaskCommentUpdateView(APIView):
 
 class TaskCommentDeleteView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        TenantServiceRBACPermission,
+    ]
+    required_permission = "comments.delete"
 
     def delete(self,request,comment_id):
         tenant_id = request.tenant_context.tenant_id
