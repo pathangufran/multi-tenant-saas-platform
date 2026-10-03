@@ -3,6 +3,7 @@ from django.db import transaction
 from apps.common.exceptions import ResourceNotFoundError
 from apps.tasks.models import Task
 from .models import Attachment
+from apps.common.domain_rules import CoreDomainRules
 
 class AttachmentService:
 
@@ -13,15 +14,10 @@ class AttachmentService:
         task_id: UUID,
     ) -> Task:
         
-        try:
-            return Task.objects.get(
-                id=task_id,
-                tenant_id=tenant_id,
-            )
-        except Task.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Task not found."
-            )
+        return CoreDomainRules.ensure_task_belongs_to_tenant(
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
 
     @staticmethod
     @transaction.atomic

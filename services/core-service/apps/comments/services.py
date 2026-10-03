@@ -5,6 +5,7 @@ from .models import Comment
 from apps.common.exceptions import (
     ResourceNotFoundError,
 )
+from apps.common.domain_rules import CoreDomainRules
 
 class CommentService:
     
@@ -15,15 +16,10 @@ class CommentService:
         task_id: UUID,
     ) -> Task:
         
-        try:
-            return Task.objects.get(
-                tenant_id=tenant_id,
-                id=task_id,
-            )
-        except Task.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Task not found."
-            )
+        return CoreDomainRules.ensure_task_belongs_to_tenant(
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
             
     @staticmethod
     @transaction.atomic

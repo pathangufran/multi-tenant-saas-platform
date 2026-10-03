@@ -6,6 +6,7 @@ from apps.common.exceptions import (
 )
 from apps.tasks.models import Task
 from .models import Tag, TaskTag
+from apps.common.domain_rules import CoreDomainRules
 
 class TagService:
 
@@ -45,6 +46,11 @@ class TagService:
         tenant_id,
         task_id,
     ):
+        
+        CoreDomainRules.ensure_task_belongs_to_tenant(
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
         
         return Tag.objects.filter(
             tenant_id=tenant_id,
@@ -105,28 +111,14 @@ class TagService:
         tag_id: UUID,
     ) -> Tag:
         
-        try:
-            Task.objects.get(
-                id=task_id,
-                tenant_id=tenant_id,
-            )
-        except Task.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Task not found."
-            )
+        _, tag = CoreDomainRules.ensure_task_and_tag_same_tenant(
+            tenant_id=tenant_id,
+            task_id=task_id,
+            tag_id=tag_id,
+        )
 
         try:
-            tag = Tag.objects.get(
-                id=tag_id,
-                tenant_id=tenant_id,
-            )
-        except Tag.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Tag not found."
-            )
-
-        try:
-            return TaskTag.objects.create(
+            TaskTag.objects.create(
                 tenant_id=tenant_id,
                 task_id=task_id,
                 tag=tag,
@@ -135,6 +127,8 @@ class TagService:
             raise ConflictError(
                 "Tag is already attached to this task."
             )
+            
+        return tag
 
     @staticmethod
     @transaction.atomic
@@ -160,15 +154,10 @@ class TagService:
         tag_id: UUID,   
     ) -> Tag:
         
-        try:
-            return Tag.objects.get(
-                tenant_id=tenant_id,
-                id=tag_id,
-            )
-        except Tag.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Tag not found."
-            )
+        return CoreDomainRules.ensure_tag_belongs_to_tenant(
+            tenant_id=tenant_id,
+            tag_id=tag_id,
+        )
             
     @staticmethod
     def get_task_tag(

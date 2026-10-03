@@ -3,6 +3,7 @@ from django.db import transaction
 from apps.common.exceptions import ResourceNotFoundError
 from apps.projects.models import Project
 from .models import Task
+from apps.common.domain_rules import CoreDomainRules
 
 class TaskService:
     
@@ -13,15 +14,10 @@ class TaskService:
         project_id: UUID,
     ) -> Project:
         
-        try:
-            return Project.objects.get(
-                id=project_id,
-                tenant_id=tenant_id,
-            )
-        except Project.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Project not found."
-            )
+        return CoreDomainRules.ensure_project_belongs_to_tenant(
+            tenant_id=tenant_id,
+            project_id=project_id,
+        )
             
     @staticmethod
     @transaction.atomic
@@ -60,6 +56,12 @@ class TaskService:
         tenant_id: UUID,
         project_id: UUID,
     ):
+        
+        CoreDomainRules.ensure_project_belongs_to_tenant(
+            tenant_id=tenant_id,
+            project_id=project_id,
+        )
+        
         return Task.objects.filter(
             tenant_id=tenant_id,
             project_id=project_id,
@@ -122,12 +124,7 @@ class TaskService:
         task_id: UUID,
     ) -> Task:
         
-        try:
-            return Task.objects.get(
-                id=task_id,
-                tenant_id=tenant_id,
-            )
-        except Task.DoesNotExist:
-            raise ResourceNotFoundError(
-                "Task not found."
-            )
+        return CoreDomainRules.ensure_task_belongs_to_tenant(
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
