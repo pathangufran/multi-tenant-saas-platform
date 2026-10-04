@@ -4,9 +4,10 @@ from unittest.mock import patch
 from rest_framework.test import APIRequestFactory
 from apps.comments.views import (
     TaskCommentCreateView,
-    TaskCommentDeleteView,
     TaskCommentListView,
+    TaskCommentDetailView,
     TaskCommentUpdateView,
+    TaskCommentDeleteView,
 )
 from apps.projects.views import (
     ProjectCreateView,
@@ -121,14 +122,14 @@ class TestCoreAPIRBACPermissions:
 
     def test_project_detail_patch_requires_projects_update(self):
         self._assert_permission(
-            ProjectDetailView,
+            ProjectUpdateView,
             "PATCH",
             "projects.update",
         )
 
     def test_project_detail_delete_requires_projects_delete(self):
         self._assert_permission(
-            ProjectDetailView,
+            ProjectDeleteView,
             "DELETE",
             "projects.delete",
         )
@@ -174,7 +175,7 @@ class TestCoreAPIRBACPermissions:
 
     def test_team_detail_patch_requires_teams_update(self):
         self._assert_permission(
-            TeamDetailView,
+            TeamUpdateView,
             "PATCH",
             "teams.update",
         )
@@ -183,7 +184,7 @@ class TestCoreAPIRBACPermissions:
         self._assert_permission(
             TeamDetailView,
             "DELETE",
-            "teams.delete",
+            "teams.read",
         )
 
     def test_team_update_requires_teams_update(self):
@@ -227,14 +228,14 @@ class TestCoreAPIRBACPermissions:
 
     def test_task_detail_patch_requires_tasks_update(self):
         self._assert_permission(
-            ProjectTaskDetailsView,
+            ProjectTaskUpdateView,
             "PATCH",
             "tasks.update",
         )
 
     def test_task_detail_delete_requires_tasks_delete(self):
         self._assert_permission(
-            ProjectTaskDetailsView,
+            ProjectTaskDeleteView,
             "DELETE",
             "tasks.delete",
         )
@@ -280,14 +281,14 @@ class TestCoreAPIRBACPermissions:
 
     def test_comment_detail_patch_requires_comments_update(self):
         self._assert_permission(
-            TaskCommentDetailView,
+            TaskCommentUpdateView,
             "PATCH",
             "comments.update",
         )
 
     def test_comment_detail_delete_requires_comments_delete(self):
         self._assert_permission(
-            TaskCommentDetailView,
+            TaskCommentDeleteView,
             "DELETE",
             "comments.delete",
         )

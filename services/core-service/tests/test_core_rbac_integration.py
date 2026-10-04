@@ -53,7 +53,7 @@ class TestTenantServiceRBACPermission:
             self.view,
         )
 
-        assert result is True
+        assert result
 
         mock_post.assert_called_once()
 

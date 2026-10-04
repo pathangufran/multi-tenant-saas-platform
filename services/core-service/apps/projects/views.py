@@ -17,7 +17,7 @@ class ProjectCreateView(APIView):
         IsAuthenticated,
         TenantServiceRBACPermission,    
     ]
-    required_permission = "project.create"
+    required_permission = "projects.create"
     
     def post(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -46,7 +46,7 @@ class ProjectListView(APIView):
         IsAuthenticated,
         TenantServiceRBACPermission,    
     ]
-    required_permission = "project.read"
+    required_permission = "projects.read"
     
     def get(self,request):
         tenant_id = request.tenant_context.tenant_id
@@ -70,7 +70,7 @@ class ProjectDetailView(APIView):
         IsAuthenticated,
         TenantServiceRBACPermission,    
     ]
-    required_permission = "project.read"
+    required_permission = "projects.read"
     
     def get(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
@@ -92,7 +92,7 @@ class ProjectUpdateView(APIView):
         IsAuthenticated,
         TenantServiceRBACPermission,    
     ]
-    required_permission = "project.update"
+    required_permission = "projects.update"
     
     
     def patch(self,request,project_id):
@@ -122,7 +122,7 @@ class ProjectDeleteView(APIView):
         IsAuthenticated,
         TenantServiceRBACPermission,    
     ]
-    required_permission = "project.delete"
+    required_permission = "projects.delete"
     
     def delete(self,request,project_id):
         tenant_id = request.tenant_context.tenant_id
