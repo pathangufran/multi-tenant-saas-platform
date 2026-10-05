@@ -28,6 +28,10 @@ urlpatterns = [
         include("apps.tenants.urls")
     ),
     path(
+        "api/internal/v1/",
+        include("apps.tenants.rbac_internal_urls")
+    ),
+    path(
         "api/schema/",
         SpectacularAPIView.as_view(),
         name="schema",
