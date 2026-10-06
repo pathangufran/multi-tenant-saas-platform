@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     'apps.email_service',
+    'apps.notifications',
 ]
 
 MIDDLEWARE = [

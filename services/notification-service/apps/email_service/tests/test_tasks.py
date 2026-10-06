@@ -9,7 +9,7 @@ class TestEmailTasks:
     def test_send_email_task_is_registered(self):
         assert (
             send_email_task.name
-            == "apps.email_service.tasks.send_email_task"
+            == "apps.email_service.tasks.send_mail_task"
         )
 
     def test_welcome_email_task_is_registered(self):

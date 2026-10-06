@@ -74,7 +74,7 @@ def send_email_task(
     )
     
     try:
-        sent_count = EmailService.send_mail(
+        sent_count = EmailService.send_email(
             recipient=recipient,
             subject=subject,
             body=body,
