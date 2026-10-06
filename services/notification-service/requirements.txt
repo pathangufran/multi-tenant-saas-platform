@@ -1,0 +1,5 @@
+Django==5.2.6
+celery==5.5.3
+redis==6.4.0
+pytest==8.4.2
+pytest-django==4.11.1
