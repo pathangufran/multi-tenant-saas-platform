@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from apps.common.tasks import (
     health_check_task,
@@ -71,3 +72,59 @@ class TestRetryableTask:
             "successful-task"
         )
         assert result["retry_count"] == 0
+        
+    def test_base_task_records_exhausted_failure():
+
+        from unittest.mock import patch
+
+        from apps.common.task_infrastructure import BaseTask
+        from apps.failed_jobs.models import FailedJob
+
+        task = BaseTask()
+
+        task.name = "test.dead_letter_task"
+        task.max_retries = 5
+
+        with patch.object(
+            task,
+            "request",
+            create=True,
+        ) as request:
+
+            request.retries = 5
+            request.request_id = "request-123"
+            request.tenant_id = uuid.uuid4()
+            request.user_id = uuid.uuid4()
+
+            exception = RuntimeError(
+                "Permanent worker failure."
+            )
+
+            task.on_failure(
+                exception,
+                "celery-task-123",
+                ("operation-1",),
+                {"example": True},
+                "traceback",
+            )
+
+        failed_job = FailedJob.objects.get(
+            task_id="celery-task-123",
+        )
+
+        assert (
+            failed_job.task_name
+            == "test.dead_letter_task"
+        )
+
+        assert failed_job.retry_count == 5
+
+        assert (
+            failed_job.error_message
+            == "Permanent worker failure."
+        )
+
+        assert (
+            failed_job.request_id
+            == "request-123"
+        )

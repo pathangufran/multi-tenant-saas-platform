@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     'apps.exports',
+    'apps.failed_jobs',
 ]
 
 MIDDLEWARE = [
