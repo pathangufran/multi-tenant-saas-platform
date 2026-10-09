@@ -194,7 +194,7 @@ class TestExportService:
         other_tenant = uuid.uuid4()
 
         with pytest.raises(
-            Export.DoesNotExist,
+            ValueError,match="Export not found"
         ):
             ExportService.get_export(
                 tenant_id=other_tenant,

@@ -8,6 +8,7 @@ click-plugins==1.1.1.2
 click-repl==0.4.1
 colorama==0.4.6
 Django==5.2.6
+django-environ==0.14.0
 djangorestframework==3.18.3
 iniconfig==2.3.0
 kombu==5.5.4

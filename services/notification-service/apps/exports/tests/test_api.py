@@ -37,7 +37,7 @@ class TestExportAPI:
         )
 
         with pytest.raises(
-            Export.DoesNotExist,
+            ValueError,match="Export not found"
         ):
             ExportService.get_export(
                 tenant_id=self.tenant_id,
@@ -55,7 +55,7 @@ class TestExportAPI:
         )
 
         with pytest.raises(
-            Export.DoesNotExist,
+            ValueError,match="Export not found"
         ):
             ExportService.get_export(
                 tenant_id=self.tenant_id,

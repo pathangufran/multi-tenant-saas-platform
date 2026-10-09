@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from apps.failed_jobs.models import FailedJob
+from apps.failed_jobs.models import FailedJobs
 from apps.failed_jobs.services import FailedJobService
 
 pytestmark = pytest.mark.django_db
@@ -67,7 +67,7 @@ class TestFailedJobService:
 
         assert (
             failed_job.status
-            == FailedJob.Status.FAILED
+            == FailedJobs.Status.FAILED
         )
 
         assert failed_job.retry_count == 5
@@ -208,7 +208,7 @@ class TestFailedJobService:
 
         resolved = list(
             FailedJobService.list_failures(
-                status=FailedJob.Status.RESOLVED,
+                status=FailedJobs.Status.RESOLVED,
             )
         )
 
@@ -255,7 +255,7 @@ class TestFailedJobService:
 
         assert (
             resolved.status
-            == FailedJob.Status.RESOLVED
+            == FailedJobs.Status.RESOLVED
         )
 
         assert (
