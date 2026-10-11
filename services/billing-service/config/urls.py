@@ -28,4 +28,8 @@ urlpatterns = [
         "api/v1/subscriptions/", 
         include("apps.subscriptions.urls")
     ),
+    path(
+        "api/v1/usage",
+        include("apps.usage_tracking.urls")
+    ),
 ]
