@@ -24,4 +24,8 @@ urlpatterns = [
         "api/v1/plans/", 
         include("apps.plans.urls")
     ),
+    path(
+        "api/v1/subscriptions/", 
+        include("apps.subscriptions.urls")
+    ),
 ]

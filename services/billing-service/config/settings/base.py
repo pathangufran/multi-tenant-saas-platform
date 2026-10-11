@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import os
 import environ
 from pathlib import Path
 
@@ -25,14 +26,9 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY",)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env("DEBUG", "False").lower() == "true"
+DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = ALLOWED_HOSTS = [
-    host.strip()
-    for host in env("ALLOWED_HOSTS", "").split(",")
-    if host.strip()
-]
-
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # Application definition
 
@@ -48,6 +44,7 @@ INSTALLED_APPS = [
     
     'apps.common',
     'apps.plans',
+    'apps.subscriptions',
 ]
 
 MIDDLEWARE = [
