@@ -29,7 +29,11 @@ urlpatterns = [
         include("apps.subscriptions.urls")
     ),
     path(
-        "api/v1/usage",
+        "api/v1/usage/",
         include("apps.usage_tracking.urls")
+    ),
+    path(
+        "api/v1/entitlements/",
+        include("apps.entitlements.urls")
     ),
 ]

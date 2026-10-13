@@ -1,0 +1,60 @@
+from django.urls import path
+from apps.entitlements.views import (
+    AdminFeatureCreateView,
+    AdminFeatureListView,
+    AdminFeatureUpdateView,
+    AdminLimitCheckView,
+    AdminPlanFeatureDetailView,
+    AdminPlanFeatureUpdateView,
+    AdminPlanFeatureCreateView,
+    AdminPlanFeatureListView,
+    AdminTenantEntitlementsView,
+)
+
+urlpatterns = [
+    path(
+        "admin/create/",
+        AdminFeatureCreateView.as_view(),
+        name="admin-feature-create",
+    ),
+    path(
+        "admin/list/",
+        AdminFeatureListView.as_view(),
+        name="admin-feature-list",
+    ),
+    path(
+        "admin/<int:feature_id>/update/",
+        AdminFeatureUpdateView.as_view(),
+        name="admin-feature-update",
+    ),
+    path(
+        "admin/plan_features/create/",
+        AdminPlanFeatureCreateView.as_view(),
+        name="admin-plan-feature-create",
+    ),
+    path(
+        "admin/plan_features/list/",
+        AdminPlanFeatureListView.as_view(),
+        name="admin-plan-feature-list",
+    ),
+    path(
+        "admin/plans/<uuid:plan_id>/features/<int:feature_id>/details/",
+        AdminPlanFeatureDetailView.as_view(),
+        name="admin-plan-feature-detail",
+    ),
+    path(
+        "admin/plans/<uuid:plan_id>/features/<int:feature_id>/update/",
+        AdminPlanFeatureUpdateView.as_view(),
+        name="admin-plan-feature-update",
+    ),
+    path(
+        "admin/entitlements/details/",
+        AdminTenantEntitlementsView.as_view(),
+        name="admin-tenant-entitlements",
+    ),
+    path(
+        "admin/entitlements/check/",
+        AdminLimitCheckView.as_view(),
+        name="admin-entitlement-limit-check",
+    ),
+]
