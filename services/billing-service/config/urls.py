@@ -36,4 +36,8 @@ urlpatterns = [
         "api/v1/entitlements/",
         include("apps.entitlements.urls")
     ),
+    path(
+        "api/v1/invoices/",
+        include("apps.invoices.urls")
+    ),
 ]

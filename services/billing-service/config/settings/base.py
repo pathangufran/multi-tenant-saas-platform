@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.subscriptions',
     'apps.usage_tracking',
     'apps.entitlements',
+    'apps.invoices',
 ]
 
 MIDDLEWARE = [
