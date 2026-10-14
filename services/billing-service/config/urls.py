@@ -40,4 +40,8 @@ urlpatterns = [
         "api/v1/invoices/",
         include("apps.invoices.urls")
     ),
+    path(
+        "api/v1/payments/",
+        include("apps.payments.urls")
+    ),
 ]
