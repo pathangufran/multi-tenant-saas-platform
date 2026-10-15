@@ -3,6 +3,7 @@ from apps.payments.views import (
     AdminPaymentCreateView,
     AdminPaymentListView,
     AdminPaymentDetailView,
+    PaymentWebhookView,
 )
 
 urlpatterns = [
@@ -20,5 +21,10 @@ urlpatterns = [
         "admin/<uuid:payment_id>/detail/",
         AdminPaymentDetailView.as_view(),
         name="admin-payment-detail",
+    ),
+    path(
+        "webhooks/payment/",
+        PaymentWebhookView.as_view(),
+        name="payment-webhook",
     ),
 ]

@@ -107,3 +107,61 @@ class Payment(models.Model):
                 "updated_at",
             ]
         )
+        
+class WebhookEvent(models.Model):
+    class Status(models.TextChoices):
+        RECEIVED = "RECEIVED", "Received"
+        PROCESSING = "PROCESSING", "Processing"
+        PROCESSED = "PROCESSED", "Processed"
+        FAILED = "FAILED", "Failed"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    provider = models.CharField(
+        max_length=20,
+        choices=Payment.Provider.choices,
+        default=Payment.Provider.MOCK,
+    )
+    event_id = models.CharField(max_length=255)
+    event_type = models.CharField(max_length=100)
+    payload = models.JSONField(default=dict)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RECEIVED,
+    )
+    error_message = models.CharField(
+        max_length=500,
+        blank=True,
+    )
+    received_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-received_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "event_id"],
+                name="unique_provider_webhook_event",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["status", "received_at"],
+                name="webhook_status_received_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.event_id} ({self.status})"

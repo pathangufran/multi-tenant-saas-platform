@@ -1,3 +1,4 @@
+from rest_framework.validators import ValidationError
 from rest_framework import serializers
 from apps.payments.models import Payment
 
@@ -54,3 +55,62 @@ class PaymentResponseSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     completed_at = serializers.DateTimeField()
+    
+class WebhookDataSerializer(serializers.Serializer):
+    provider_payment_id = serializers.CharField(
+        max_length=255,
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            Payment.Status.SUCCEEDED,
+            Payment.Status.FAILED,
+            Payment.Status.CANCELED,
+            Payment.Status.REFUNDED,
+        ]
+    )
+    
+class PaymentWebhookSerializer(
+    serializers.Serializer,
+):
+    id = serializers.CharField(
+        max_length=255,
+    )
+    type = serializers.ChoiceField(
+        choices=[
+            "payment.succeeded",
+            "payment.failed",
+            "payment.canceled",
+            "payment.refunded",
+        ]
+    )
+    data = WebhookDataSerializer()
+    
+    def validate(self,attrs):
+        event_to_status = {
+            "payment.succeeded": Payment.Status.SUCCEEDED,
+            "payment.failed": Payment.Status.FAILED,
+            "payment.canceled": Payment.Status.CANCELED,
+            "payment.refunded": Payment.Status.REFUNDED,
+        }
+        
+        expected_status = event_to_status[attrs["type"]]
+        if attrs["data"]["status"] != expected_status:
+            raise ValidationError(
+                "Status does not match the webhook event type."
+            )
+            
+        return attrs
+    
+class WebhookEventSerializer(
+    serializers.Serializer,
+):
+    id = serializers.UUIDField()
+    provider = serializers.CharField()
+    event_id = serializers.CharField()
+    event_type = serializers.CharField()
+    payload = serializers.JSONField()
+    status = serializers.CharField()
+    error_message = serializers.CharField()
+    received_at = serializers.DateTimeField()
+    processed_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
