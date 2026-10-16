@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.entitlements',
     'apps.invoices',
     'apps.payments',
+    'apps.integrations',
 ]
 
 MIDDLEWARE = [
@@ -156,3 +157,40 @@ PAYMENT_WEBHOOK_SECRET = env(
     "PAYMENT_WEBHOOK_SECRET",
     default="",
 )
+
+TENANT_SERVICE_URL = env(
+    "TENANT_SERVICE_URL",
+    default="http://localhost:8001",
+)
+
+CORE_SERVICE_URL = env(
+    "CORE_SERVICE_URL",
+    default="http://localhost:8002",
+)
+
+NOTIFICATION_SERVICE_URL = env(
+    "NOTIFICATION_SERVICE_URL",
+    default="http://localhost:8003",
+)
+
+INTERNAL_SERVICE_KEY = env(
+    "INTERNAL_SERVICE_KEY",
+    default="",
+)
+
+INTEGRATION_TIMEOUT_SECONDS = env(
+    "INTEGRATION_TIMEOUT_SECONDS",
+    default=5,
+    cast=int,
+)
+
+CELERY_BEAT_SCHEDULE = {
+    # Preserve any existing schedules.
+    "billing-outbox-sweep-every-minute": {
+        "task": (
+            "apps.integrations.tasks."
+            "dispatch_pending_billing_events"
+        ),
+        "schedule": 60.0,
+    },
+}
