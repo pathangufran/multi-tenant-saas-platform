@@ -142,3 +142,42 @@ CELERY_RESULT_BACKEND = os.getenv(
     "REDIS_URL",
     "redis://localhost:6384/2",
 )
+
+SERVICE_NAME = env(
+    "SERVICE_NAME",
+    default="unknown-service",
+)
+
+ENVIRONMENT = env(
+    "ENVIRONMENT",
+    default="development",
+)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "config.logging.JsonFormatter",
+            "service_name": SERVICE_NAME,
+            "environment": ENVIRONMENT,
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": env("LOG_LEVEL", default="INFO"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+    },
+}
