@@ -70,9 +70,7 @@ class Subscription(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=Q(
-                    current_period_end__gt=(
-                        models.F("current_period_start"),
-                    ),
+                    current_period_end__gt=models.F("current_period_start"),
                 ),
                 name="sub_period_end_after_start",
             ),

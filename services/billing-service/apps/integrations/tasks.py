@@ -1,5 +1,5 @@
 from celery import shared_task
-from apps.integrations.services import (
+from .services import (
     BillingIntegrationService,
 )
 

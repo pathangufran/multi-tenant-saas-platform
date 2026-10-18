@@ -34,8 +34,14 @@ class InvoiceLineItemSerializer(
     invoice = serializers.UUIDField()
     description = serializers.CharField()
     quantity = serializers.IntegerField()
-    unit_price = serializers.DecimalField()
-    amount = serializers.DecimalField()
+    unit_price = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
     created_at = serializers.DateTimeField()
     
 class InvoiceResponseSerializer(
@@ -55,9 +61,18 @@ class InvoiceResponseSerializer(
     billing_interval = serializers.CharField()
     period_start = serializers.DateTimeField()
     period_end = serializers.DateTimeField()
-    subtotal = serializers.DecimalField()
-    tax_amount = serializers.DecimalField()
-    total = serializers.DecimalField()
+    subtotal = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    tax_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    total = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
     status = serializers.CharField()
     issued_at = serializers.DateTimeField()
     due_at = serializers.DateTimeField()

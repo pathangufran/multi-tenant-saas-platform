@@ -40,14 +40,15 @@ class EntitlementService:
         return (
             Subscription.objects
             .select_related("plan")
-            .get(
+            .filter(
                 tenant_id=tenant_id,
                 status__in=(
                     EntitlementService.
-                    ACTIVE_SUBSCRIPTION_STATUSES
+                    ACTIVE_SUBSCRIPTION_STATUSES,
                 )
-                .order_by("-created_at")
             )
+            .order_by("-created_at")
+            .first()
         )
         
     @staticmethod

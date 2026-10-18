@@ -47,7 +47,10 @@ class PaymentResponseSerializer(serializers.Serializer):
     provider = serializers.CharField()
     provider_payment_id = serializers.CharField()
     idempotency_key = serializers.CharField()
-    amount = serializers.DecimalField()
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
     currency = serializers.CharField()
     status = serializers.CharField()
     checkout_url = serializers.URLField()

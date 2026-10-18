@@ -1,5 +1,5 @@
 from django.urls import path
-from apps.integrations.views import (
+from .views import (
     AdminBillingEventDetailView,
     AdminBillingEventListView,
     AdminBillingEventRetryView,

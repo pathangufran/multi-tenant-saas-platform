@@ -4,13 +4,11 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from apps.integrations.clients import (
+from .clients import (
     IntegrationError,
-    RemoteServiceRejected,
-    RemoteServiceUnavailable,
     TenantServiceClient,
 )
-from apps.integrations.models import (
+from .models import (
     BillingEvent,
     BillingEventDelivery,
 )
@@ -19,9 +17,6 @@ from apps.subscriptions.services import (
 )
 from apps.subscriptions.models import (
     Subscription
-)
-from apps.integrations.tasks import (
-    dispatch_billing_event,
 )
 from rest_framework.exceptions import NotFound
 
@@ -142,6 +137,7 @@ class BillingIntegrationService:
     
     @staticmethod
     def _enqueue_dispatch(event_id: UUID):
+        from .tasks import dispatch_billing_event
         
         try:
             dispatch_billing_event.delay(event_id)

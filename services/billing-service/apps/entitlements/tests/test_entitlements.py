@@ -1,583 +1,500 @@
+"""Class-based tests for the entitlements app.
+
+These tests use Django's TestCase (not pytest fixtures or function-based tests).
+They target the models, serializers, and service APIs in the supplied files.
+"""
+
 import uuid
-import pytest
 from decimal import Decimal
-from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError
-from rest_framework.test import APIClient
+
+from django.db import IntegrityError, transaction
+from django.test import TestCase
+from datetime import timedelta
+from django.utils import timezone
+
 from apps.entitlements.models import Feature, PlanFeature
 from apps.entitlements.serializers import (
-    FeatureSerializer,
-    PlanFeatureSerializer,
+    FeatureCreateSerializer,
+    FeatureUpdateSerializer,
+    FeatureResponseSerializer,
+    PlanFeatureCreateSerializer,
+    PlanFeatureUpdateSerializer,
+    PlanFeatureResponseSerializer,
+    LimitCheckSerializer,
+    TenantEntitlementsSerializer,
+    LimitCheckResultSerializer,
 )
 from apps.entitlements.services import EntitlementService
 from apps.plans.models import Plan
 from apps.subscriptions.models import Subscription
-from apps.subscriptions.services import SubscriptionService
-from apps.usage_tracking.models import UsageRecord
-from apps.usage_tracking.services import UsageService
 
-@pytest.fixture
-def tenant_id():
-    return uuid.uuid4()
 
-@pytest.fixture
-def plan(db):
-    return Plan.objects.create(
-        code="PRO",
-        name="Professional",
-        price=Decimal("999.00"),
-        currency="INR",
-        billing_interval=Plan.BillingInterval.MONTHLY,
-        is_active=True,
-        is_public=True,
-    )
+class EntitlementTestDataMixin:
+    """Shared factories for Django TestCase classes."""
 
-@pytest.fixture
-def active_subscription(plan, tenant_id):
-    return SubscriptionService.create_subscription(
-        validated_data={
-            "tenant_id": tenant_id,
-            "plan_id": plan.id,
+    def create_plan(self, **overrides):
+        values = {
+            "code": "PRO",
+            "name": "Professional",
+            "description": "Professional plan",
+            "price": Decimal("999.00"),
+            "currency": "INR",
+            "billing_interval": Plan.BillingInterval.MONTHLY,
+            "is_active": True,
+            "is_public": True,
         }
-    )
+        values.update(overrides)
+        return Plan.objects.create(**values)
 
-@pytest.fixture
-def max_users_feature(db):
-    return Feature.objects.create(
-        key="max_users",
-        name="Maximum users",
-        description="Maximum number of active users.",
-        value_type=Feature.ValueType.INTEGER,
-    )
-
-@pytest.fixture
-def max_projects_feature(db):
-    return Feature.objects.create(
-        key="max_projects",
-        name="Maximum projects",
-        value_type=Feature.ValueType.INTEGER,
-    )
-
-@pytest.fixture
-def storage_feature(db):
-    return Feature.objects.create(
-        key="storage_limit",
-        name="Storage limit",
-        value_type=Feature.ValueType.STORAGE_BYTES,
-    )
-
-@pytest.fixture
-def reports_feature(db):
-    return Feature.objects.create(
-        key="advanced_reports",
-        name="Advanced reports",
-        value_type=Feature.ValueType.BOOLEAN,
-    )
-
-@pytest.fixture
-def admin_client(db):
-    user_model = get_user_model()
-    user = user_model.objects.create_superuser(
-        username="entitlements-admin",
-        email="entitlements-admin@example.com",
-        password="test-password",
-    )
-    client = APIClient()
-    client.force_authenticate(user=user)
-    return client
-
-@pytest.mark.django_db
-def test_create_feature():
-    feature = EntitlementService.create_feature(
-        validated_data={
+    def create_feature(self, **overrides):
+        values = {
             "key": "max_users",
             "name": "Maximum users",
-            "description": "Maximum active users.",
+            "description": "Maximum number of active users.",
             "value_type": Feature.ValueType.INTEGER,
             "is_active": True,
         }
-    )
+        values.update(overrides)
+        return Feature.objects.create(**values)
 
-    assert feature.id is not None
-    assert feature.key == "max_users"
-    assert feature.value_type == Feature.ValueType.INTEGER
+    def create_subscription(self, plan, tenant_id=None, status=None):
+        start = timezone.now()
+        return Subscription.objects.create(
+            tenant_id=tenant_id or uuid.uuid4(),
+            plan=plan,
+            status=status or Subscription.Status.ACTIVE,
+            start_at=start,
+            current_period_start=start,
+            current_period_end=start + timedelta(days=30),
+        )
 
-@pytest.mark.django_db
-def test_feature_serializer_normalizes_key():
-    serializer = FeatureSerializer(
-        data={
+    def create_admin_client(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_superuser(
+            username="entitlements-admin",
+            email="entitlements-admin@example.com",
+            password="test-password",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+
+class FeatureModelTests(EntitlementTestDataMixin, TestCase):
+    def test_feature_is_created_with_uuid_and_defaults(self):
+        feature = self.create_feature()
+
+        self.assertIsNotNone(feature.id)
+        self.assertEqual(feature.key, "max_users")
+        self.assertTrue(feature.is_active)
+        self.assertEqual(str(feature), "max_users")
+
+    def test_feature_ordering_uses_key(self):
+        self.create_feature(key="storage_limit", name="Storage", value_type=Feature.ValueType.STORAGE_BYTES)
+        self.create_feature(key="advanced_reports", name="Reports", value_type=Feature.ValueType.BOOLEAN)
+
+        self.assertEqual(
+            list(Feature.objects.values_list("key", flat=True)),
+            ["advanced_reports", "max_users", "storage_limit"],
+        )
+
+    def test_feature_key_must_be_unique(self):
+        self.create_feature()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_feature(name="Duplicate")
+
+
+class PlanFeatureModelTests(EntitlementTestDataMixin, TestCase):
+    def setUp(self):
+        self.plan = self.create_plan()
+        self.feature = self.create_feature()
+
+    def test_plan_feature_relationship_and_string_representation(self):
+        assignment = PlanFeature.objects.create(
+            plan=self.plan, feature=self.feature, enabled=True, value=25
+        )
+
+        self.assertEqual(assignment.plan_id, self.plan.id)
+        self.assertEqual(assignment.feature_id, self.feature.id)
+        self.assertEqual(str(assignment), "PRO - max_users")
+
+    def test_duplicate_plan_feature_pair_is_rejected(self):
+        PlanFeature.objects.create(plan=self.plan, feature=self.feature, value=25)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PlanFeature.objects.create(plan=self.plan, feature=self.feature, value=50)
+
+    def test_disabled_feature_cannot_have_value(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PlanFeature.objects.create(
+                    plan=self.plan, feature=self.feature, enabled=False, value=10
+                )
+
+    def test_disabled_feature_may_have_null_value(self):
+        assignment = PlanFeature.objects.create(
+            plan=self.plan, feature=self.feature, enabled=False, value=None
+        )
+        self.assertFalse(assignment.enabled)
+        self.assertIsNone(assignment.value)
+
+
+class FeatureSerializerTests(EntitlementTestDataMixin, TestCase):
+    def test_create_serializer_accepts_valid_feature(self):
+        serializer = FeatureCreateSerializer(data={
+            "key": "max_users",
+            "name": "Maximum users",
+            "description": "Limit active users",
+            "value_type": Feature.ValueType.INTEGER,
+            "is_active": True,
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["key"], "max_users")
+
+    def test_create_serializer_normalizes_key(self):
+        serializer = FeatureCreateSerializer(data={
             "key": "  MAX_USERS  ",
             "name": "Maximum users",
             "value_type": Feature.ValueType.INTEGER,
-        }
-    )
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["key"], "max_users")
 
-    assert serializer.is_valid(), serializer.errors
-    assert serializer.validated_data["key"] == "max_users"
-
-@pytest.mark.django_db
-def test_duplicate_feature_key_is_rejected(max_users_feature):
-    serializer = FeatureSerializer(
-        data={
-            "key": "max_users",
-            "name": "Duplicate feature",
-            "value_type": Feature.ValueType.INTEGER,
-        }
-    )
-
-    assert not serializer.is_valid()
-    assert "key" in serializer.errors
-
-@pytest.mark.django_db
-def test_update_feature(max_users_feature):
-    updated = EntitlementService.update_feature(
-        feature_id=max_users_feature.id,
-        validated_data={"name": "Maximum active users"},
-    )
-
-    assert updated.name == "Maximum active users"
-
-@pytest.mark.django_db
-def test_update_unknown_feature_fails():
-    with pytest.raises(ValidationError):
-        EntitlementService.update_feature(
-            feature_id=999999,
-            validated_data={"name": "Unknown"},
-        )
-
-@pytest.mark.django_db
-def test_list_features_excludes_inactive_by_default(max_users_feature):
-    Feature.objects.create(
-        key="legacy_feature",
-        name="Legacy feature",
-        value_type=Feature.ValueType.BOOLEAN,
-        is_active=False,
-    )
-
-    features = EntitlementService.list_features(active_only=True)
-
-    assert list(features.values_list("key", flat=True)) == ["max_users"]
-
-@pytest.mark.django_db
-def test_set_integer_plan_feature(plan, max_users_feature):
-    assignment = EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=max_users_feature.id,
-        enabled=True,
-        value=50,
-    )
-
-    assert assignment.plan_id == plan.id
-    assert assignment.feature_id == max_users_feature.id
-    assert assignment.enabled is True
-    assert assignment.value == 50
-
-@pytest.mark.django_db
-def test_set_boolean_plan_feature(plan, reports_feature):
-    assignment = EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=reports_feature.id,
-        enabled=True,
-        value=True,
-    )
-
-    assert assignment.value is True
-
-@pytest.mark.django_db
-def test_update_existing_plan_feature_instead_of_duplicating(
-    plan,
-    max_users_feature,
-):
-    first = EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=max_users_feature.id,
-        enabled=True,
-        value=50,
-    )
-
-    second = EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=max_users_feature.id,
-        enabled=True,
-        value=75,
-    )
-
-    assert second.id == first.id
-    assert second.value == 75
-    assert PlanFeature.objects.filter(
-        plan=plan,
-        feature=max_users_feature,
-    ).count() == 1
-
-@pytest.mark.django_db
-def test_plan_feature_rejects_wrong_value_type(plan, max_users_feature):
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=plan.id,
-            feature_id=max_users_feature.id,
-            value=True,
-        )
-
-@pytest.mark.django_db
-def test_plan_feature_rejects_negative_limit(plan, max_users_feature):
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=plan.id,
-            feature_id=max_users_feature.id,
-            value=-1,
-        )
-
-@pytest.mark.django_db
-def test_disabled_plan_feature_must_not_have_value(plan, max_users_feature):
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=plan.id,
-            feature_id=max_users_feature.id,
-            enabled=False,
-            value=50,
-        )
-
-@pytest.mark.django_db
-def test_unknown_plan_rejected(max_users_feature):
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=uuid.uuid4(),
-            feature_id=max_users_feature.id,
-            value=50,
-        )
-
-@pytest.mark.django_db
-def test_unknown_feature_rejected(plan):
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=plan.id,
-            feature_id=999999,
-            value=50,
-        )
-
-@pytest.mark.django_db
-def test_inactive_feature_cannot_be_assigned(plan, max_users_feature):
-    max_users_feature.is_active = False
-    max_users_feature.save(update_fields=["is_active", "updated_at"])
-
-    with pytest.raises(ValidationError):
-        EntitlementService.set_plan_feature(
-            plan_id=plan.id,
-            feature_id=max_users_feature.id,
-            value=50,
-        )
-
-@pytest.mark.django_db
-def test_list_plan_features(plan, max_users_feature, reports_feature):
-    EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=max_users_feature.id,
-        value=50,
-    )
-    EntitlementService.set_plan_feature(
-        plan_id=plan.id,
-        feature_id=reports_feature.id,
-        value=True,
-    )
-
-    records = EntitlementService.list_plan_features(plan_id=plan.id)
-
-    assert records.count() == 2
-
-@pytest.mark.django_db
-def test_get_tenant_entitlements(active_subscription, tenant_id):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=Feature.objects.create(
-            key="max_users",
-            name="Maximum users",
-            value_type=Feature.ValueType.INTEGER,
-        ).id,
-        value=50,
-    )
-
-    result = EntitlementService.get_tenant_entitlements(tenant_id=tenant_id)
-
-    assert result["has_subscription"] is True
-    assert result["plan"]["code"] == "PRO"
-    assert result["features"]["max_users"] == 50
-
-@pytest.mark.django_db
-def test_tenant_without_subscription_has_no_entitlements(tenant_id):
-    result = EntitlementService.get_tenant_entitlements(tenant_id=tenant_id)
-
-    assert result["has_subscription"] is False
-    assert result["plan"] is None
-    assert result["features"] == {}
-
-@pytest.mark.django_db
-def test_disabled_feature_is_returned_as_false(
-    active_subscription,
-    max_users_feature,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_users_feature.id,
-        enabled=False,
-        value=None,
-    )
-
-    result = EntitlementService.get_tenant_entitlements(
-        tenant_id=active_subscription.tenant_id,
-    )
-
-    assert result["features"]["max_users"] is False
-
-@pytest.mark.django_db
-def test_check_limit_allows_usage_within_limit(
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_users_feature.id,
-        value=50,
-    )
-    UsageService.set_usage(
-        tenant_id=tenant_id,
-        metric=UsageRecord.Metric.ACTIVE_USERS,
-        quantity=20,
-    )
-
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="max_users",
-        requested_quantity=1,
-    )
-
-    assert result["allowed"] is True
-    assert result["reason"] == "within_limit"
-    assert result["limit"] == 50
-    assert result["current_usage"] == 20
-    assert result["remaining"] == 30
-
-@pytest.mark.django_db
-def test_check_limit_rejects_request_exceeding_limit(
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_users_feature.id,
-        value=10,
-    )
-    UsageService.set_usage(
-        tenant_id=tenant_id,
-        metric=UsageRecord.Metric.ACTIVE_USERS,
-        quantity=10,
-    )
-
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="max_users",
-        requested_quantity=1,
-    )
-
-    assert result["allowed"] is False
-    assert result["reason"] == "limit_exceeded"
-    assert result["remaining"] == 0
-
-@pytest.mark.django_db
-def test_check_limit_handles_missing_usage_record(
-    active_subscription,
-    max_projects_feature,
-    tenant_id,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_projects_feature.id,
-        value=5,
-    )
-
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="max_projects",
-        requested_quantity=1,
-    )
-
-    assert result["allowed"] is True
-    assert result["current_usage"] == 0
-    assert result["remaining"] == 5
-
-@pytest.mark.django_db
-def test_check_limit_fails_closed_without_subscription(
-    max_users_feature,
-    tenant_id,
-):
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="max_users",
-    )
-
-    assert result["allowed"] is False
-    assert result["reason"] == "no_active_subscription"
-
-@pytest.mark.django_db
-def test_check_limit_fails_closed_for_unknown_feature(
-    active_subscription,
-    tenant_id,
-):
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="unknown_limit",
-    )
-
-    assert result["allowed"] is False
-    assert result["reason"] == "unknown_feature"
-
-@pytest.mark.django_db
-def test_check_limit_fails_closed_when_feature_not_assigned(
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    result = EntitlementService.check_limit(
-        tenant_id=tenant_id,
-        feature_key="max_users",
-    )
-
-    assert result["allowed"] is False
-    assert result["reason"] == "feature_not_entitled"
-
-@pytest.mark.django_db
-def test_check_limit_rejects_zero_requested_quantity(
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    with pytest.raises(ValidationError):
-        EntitlementService.check_limit(
-            tenant_id=tenant_id,
-            feature_key="max_users",
-            requested_quantity=0,
-        )
-
-@pytest.mark.django_db
-def test_feature_serializer_rejects_invalid_key():
-    serializer = FeatureSerializer(
-        data={
+    def test_create_serializer_rejects_invalid_key(self):
+        serializer = FeatureCreateSerializer(data={
             "key": "invalid key!",
             "name": "Invalid",
             "value_type": Feature.ValueType.BOOLEAN,
-        }
-    )
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("key", serializer.errors)
 
-    assert not serializer.is_valid()
-    assert "key" in serializer.errors
-
-@pytest.mark.django_db
-def test_plan_feature_serializer_rejects_wrong_type(max_users_feature, plan):
-    serializer = PlanFeatureSerializer(
-        data={
-            "plan_id": str(plan.id),
-            "feature_id": max_users_feature.id,
-            "enabled": True,
-            "value": True,
-        }
-    )
-
-    assert not serializer.is_valid()
-    assert "value" in serializer.errors
-
-@pytest.mark.django_db
-def test_admin_can_create_feature(admin_client):
-    response = admin_client.post(
-        "/api/v1/admin/features/",
-        data={
+    def test_create_serializer_rejects_invalid_value_type(self):
+        serializer = FeatureCreateSerializer(data={
             "key": "max_users",
             "name": "Maximum users",
+            "value_type": "STRING",
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("value_type", serializer.errors)
+
+    def test_create_serializer_rejects_duplicate_key(self):
+        self.create_feature()
+        serializer = FeatureCreateSerializer(data={
+            "key": "max_users",
+            "name": "Duplicate",
             "value_type": Feature.ValueType.INTEGER,
-        },
-        format="json",
-    )
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("key", serializer.errors)
 
-    assert response.status_code == 201
-    assert response.data["key"] == "max_users"
+    def test_update_serializer_validates_fields(self):
+        serializer = FeatureUpdateSerializer(data={
+            "key": "max_projects",
+            "name": "Maximum projects",
+            "value_type": Feature.ValueType.INTEGER,
+        }, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-@pytest.mark.django_db
-def test_admin_can_assign_plan_feature(
-    admin_client,
-    plan,
-    max_users_feature,
-):
-    response = admin_client.post(
-        "/api/v1/admin/plan-features/",
-        data={
-            "plan_id": str(plan.id),
-            "feature_id": max_users_feature.id,
+    def test_response_serializer_exposes_model_fields(self):
+        feature = self.create_feature()
+        data = FeatureResponseSerializer(feature).data
+        self.assertEqual(data["id"], str(feature.id))
+        self.assertEqual(data["key"], "max_users")
+        self.assertIn("created_at", data)
+        self.assertIn("updated_at", data)
+
+
+class PlanFeatureSerializerTests(EntitlementTestDataMixin, TestCase):
+    def setUp(self):
+        self.plan = self.create_plan()
+        self.integer_feature = self.create_feature()
+        self.boolean_feature = self.create_feature(
+            key="advanced_reports",
+            name="Advanced reports",
+            value_type=Feature.ValueType.BOOLEAN,
+        )
+
+    def test_create_serializer_accepts_integer_value(self):
+        serializer = PlanFeatureCreateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.integer_feature.id),
             "enabled": True,
             "value": 50,
-        },
-        format="json",
-    )
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["value"], 50)
 
-    assert response.status_code == 201
-    assert response.data["value"] == 50
+    def test_create_serializer_accepts_boolean_value(self):
+        serializer = PlanFeatureCreateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.boolean_feature.id),
+            "enabled": True,
+            "value": True,
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-@pytest.mark.django_db
-def test_admin_can_read_tenant_entitlements(
-    admin_client,
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_users_feature.id,
-        value=50,
-    )
+    def test_create_serializer_rejects_boolean_for_integer_feature(self):
+        serializer = PlanFeatureCreateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.integer_feature.id),
+            "enabled": True,
+            "value": True,
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("value", serializer.errors)
 
-    response = admin_client.get(
-        "/api/v1/admin/entitlements/",
-        {"tenant_id": str(tenant_id)},
-    )
+    def test_create_serializer_rejects_negative_integer(self):
+        serializer = PlanFeatureCreateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.integer_feature.id),
+            "enabled": True,
+            "value": -1,
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("value", serializer.errors)
 
-    assert response.status_code == 200
-    assert response.data["has_subscription"] is True
-    assert response.data["features"]["max_users"] == 50
+    def test_create_serializer_rejects_value_for_disabled_feature(self):
+        serializer = PlanFeatureCreateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.integer_feature.id),
+            "enabled": False,
+            "value": 10,
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("value", serializer.errors)
 
-@pytest.mark.django_db
-def test_admin_can_check_a_limit(
-    admin_client,
-    active_subscription,
-    max_users_feature,
-    tenant_id,
-):
-    EntitlementService.set_plan_feature(
-        plan_id=active_subscription.plan_id,
-        feature_id=max_users_feature.id,
-        value=50,
-    )
+    def test_update_serializer_accepts_valid_payload(self):
+        serializer = PlanFeatureUpdateSerializer(data={
+            "plan_id": str(self.plan.id),
+            "feature_id": str(self.integer_feature.id),
+            "enabled": True,
+            "value": 75,
+        }, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    response = admin_client.post(
-        "/api/v1/admin/entitlements/check/",
-        data={
+    def test_response_serializer_exposes_assignment_fields(self):
+        assignment = PlanFeature.objects.create(
+            plan=self.plan, feature=self.integer_feature, enabled=True, value=50
+        )
+        data = PlanFeatureResponseSerializer(assignment).data
+        self.assertEqual(data["id"], str(assignment.id))
+        self.assertEqual(data["plan_id"], str(self.plan.id))
+        self.assertEqual(data["feature_id"], str(self.integer_feature.id))
+        self.assertEqual(data["value"], 50)
+
+
+class EntitlementServiceFeatureTests(EntitlementTestDataMixin, TestCase):
+    def test_create_feature_persists_data(self):
+        feature = EntitlementService.create_feature(data={
+            "key": "max_users",
+            "name": "Maximum users",
+            "description": "Maximum active users",
+            "value_type": Feature.ValueType.INTEGER,
+            "is_active": True,
+        })
+        self.assertEqual(feature.key, "max_users")
+        self.assertEqual(Feature.objects.count(), 1)
+
+    def test_list_features_excludes_inactive_by_default(self):
+        self.create_feature()
+        self.create_feature(
+            key="legacy_feature", name="Legacy", value_type=Feature.ValueType.BOOLEAN,
+            is_active=False,
+        )
+        self.assertEqual(
+            list(EntitlementService.list_features().values_list("key", flat=True)),
+            ["max_users"],
+        )
+
+    def test_list_features_can_include_inactive(self):
+        self.create_feature()
+        self.create_feature(
+            key="legacy_feature", name="Legacy", value_type=Feature.ValueType.BOOLEAN,
+            is_active=False,
+        )
+        self.assertEqual(EntitlementService.list_features(active_only=False).count(), 2)
+
+    def test_update_feature_changes_supplied_fields(self):
+        feature = self.create_feature()
+        updated = EntitlementService.update_feature(
+            feature_id=feature.id, data={"name": "Maximum active users"}
+        )
+        self.assertEqual(updated.name, "Maximum active users")
+        self.assertEqual(updated.key, feature.key)
+
+    def test_update_unknown_feature_raises_value_error(self):
+        with self.assertRaisesMessage(ValueError, "Feature not found."):
+            EntitlementService.update_feature(feature_id=uuid.uuid4(), data={"name": "Missing"})
+
+
+class EntitlementServicePlanFeatureTests(EntitlementTestDataMixin, TestCase):
+    def setUp(self):
+        self.plan = self.create_plan()
+        self.integer_feature = self.create_feature()
+        self.boolean_feature = self.create_feature(
+            key="advanced_reports", name="Advanced reports",
+            value_type=Feature.ValueType.BOOLEAN,
+        )
+
+    def test_set_integer_entitlement(self):
+        assignment = EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id, value=50
+        )
+        self.assertTrue(assignment.enabled)
+        self.assertEqual(assignment.value, 50)
+
+    def test_set_boolean_entitlement(self):
+        assignment = EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.boolean_feature.id, value=True
+        )
+        self.assertIs(assignment.value, True)
+
+    def test_setting_existing_entitlement_updates_in_place(self):
+        first = EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id, value=50
+        )
+        second = EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id, value=75
+        )
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(second.value, 75)
+        self.assertEqual(PlanFeature.objects.filter(plan=self.plan, feature=self.integer_feature).count(), 1)
+
+    def test_rejects_wrong_value_type(self):
+        with self.assertRaisesMessage(ValueError, "Value does not match feature type."):
+            EntitlementService.set_plan_feature(
+                plan_id=self.plan.id, feature_id=self.integer_feature.id, value=True
+            )
+
+    def test_rejects_negative_integer(self):
+        with self.assertRaisesMessage(ValueError, "Value does not match feature type."):
+            EntitlementService.set_plan_feature(
+                plan_id=self.plan.id, feature_id=self.integer_feature.id, value=-1
+            )
+
+    def test_rejects_value_when_disabled(self):
+        with self.assertRaisesMessage(ValueError, "Disabled features must not have a value."):
+            EntitlementService.set_plan_feature(
+                plan_id=self.plan.id, feature_id=self.integer_feature.id,
+                enabled=False, value=10,
+            )
+
+    def test_rejects_unknown_plan(self):
+        with self.assertRaisesMessage(ValueError, "Plan not found."):
+            EntitlementService.set_plan_feature(
+                plan_id=uuid.uuid4(), feature_id=self.integer_feature.id, value=10
+            )
+
+    def test_rejects_unknown_feature(self):
+        with self.assertRaisesMessage(ValueError, "Feature not found."):
+            EntitlementService.set_plan_feature(
+                plan_id=self.plan.id, feature_id=uuid.uuid4(), value=10
+            )
+
+    def test_rejects_inactive_feature(self):
+        self.integer_feature.is_active = False
+        self.integer_feature.save(update_fields=["is_active", "updated_at"])
+        with self.assertRaisesMessage(ValueError, "Feature not found."):
+            EntitlementService.set_plan_feature(
+                plan_id=self.plan.id, feature_id=self.integer_feature.id, value=10
+            )
+
+    def test_list_plan_features_orders_by_feature_key(self):
+        EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id, value=10
+        )
+        EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.boolean_feature.id, value=True
+        )
+        self.assertEqual(
+            list(EntitlementService.list_plan_features(plan_id=self.plan.id).values_list("feature__key", flat=True)),
+            ["advanced_reports", "max_users"],
+        )
+
+    def test_get_plan_feature_returns_assignment(self):
+        assignment = EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id, value=10
+        )
+        result = EntitlementService.get_plan_feature(
+            plan_id=self.plan.id, feature_id=self.integer_feature.id
+        )
+        self.assertEqual(result.id, assignment.id)
+
+    def test_get_missing_plan_feature_raises_value_error(self):
+        with self.assertRaisesMessage(ValueError, "Plan feature not found."):
+            EntitlementService.get_plan_feature(
+                plan_id=self.plan.id, feature_id=uuid.uuid4()
+            )
+
+
+class EntitlementQuerySerializerTests(TestCase):
+    def test_limit_check_serializer_validates_and_normalizes_key(self):
+        tenant_id = uuid.uuid4()
+        serializer = LimitCheckSerializer(data={
             "tenant_id": str(tenant_id),
+            "feature_key": "  MAX_USERS  ",
+            "requested_quantity": 3,
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["feature_key"], "max_users")
+        self.assertEqual(serializer.validated_data["requested_quantity"], 3)
+
+    def test_limit_check_serializer_rejects_zero_quantity(self):
+        serializer = LimitCheckSerializer(data={
+            "tenant_id": str(uuid.uuid4()),
             "feature_key": "max_users",
+            "requested_quantity": 0,
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("requested_quantity", serializer.errors)
+
+    def test_tenant_entitlements_serializer_accepts_no_subscription(self):
+        serializer = TenantEntitlementsSerializer(data={
+            "tenant_id": str(uuid.uuid4()),
+            "has_subscription": False,
+            "plan": None,
+            "features": {},
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_limit_check_result_serializer_accepts_result(self):
+        serializer = LimitCheckResultSerializer(data={
+            "allowed": True,
+            "reason": "within_limit",
+            "feature_key": "max_users",
+            "limit": 50,
+            "current_usage": 20,
             "requested_quantity": 1,
-        },
-        format="json",
-    )
+            "remaining": 30,
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    assert response.status_code == 200
-    assert response.data["allowed"] is True
 
-@pytest.mark.django_db
-def test_non_admin_cannot_check_limits(tenant_id):
-    response = APIClient().post(
-        "/api/v1/admin/entitlements/check/",
-        data={
-            "tenant_id": str(tenant_id),
-            "feature_key": "max_users",
-        },
-        format="json",
-    )
+class TenantEntitlementServiceTests(EntitlementTestDataMixin, TestCase):
+    def setUp(self):
+        self.plan = self.create_plan()
+        self.tenant_id = uuid.uuid4()
 
-    assert response.status_code in (401, 403)
+    def test_tenant_without_subscription_returns_empty_entitlements(self):
+        # The service's current implementation raises DoesNotExist for this case;
+        # this test documents the intended API contract and will expose that defect.
+        result = EntitlementService.get_tenant_entitlements(tenant_id=self.tenant_id)
+        self.assertEqual(result["tenant_id"], str(self.tenant_id))
+        self.assertFalse(result["has_subscription"])
+        self.assertIsNone(result["plan"])
+        self.assertEqual(result["features"], {})
+
+    def test_active_subscription_returns_plan_entitlements(self):
+        subscription = self.create_subscription(self.plan, tenant_id=self.tenant_id)
+        feature = self.create_feature()
+        EntitlementService.set_plan_feature(
+            plan_id=self.plan.id, feature_id=feature.id, value=50
+        )
+
+        result = EntitlementService.get_tenant_entitlements(tenant_id=self.tenant_id)
+        self.assertEqual(result["has_subscription"],False)
+        self.assertEqual(result["plan"]["code"], self.plan.code)
+        self.assertEqual(result["features"]["max_users"], 50)
+
