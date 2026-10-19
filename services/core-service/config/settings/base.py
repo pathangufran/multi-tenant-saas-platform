@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'apps.config.middleware.RequestIDMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -167,6 +168,12 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "json",
+            "filters": ["request_context"],
+        },
+    },
+    "filters": {
+        "request_context": {
+            "()": "config.request_context.RequestContextFilter",
         },
     },
     "root": {
