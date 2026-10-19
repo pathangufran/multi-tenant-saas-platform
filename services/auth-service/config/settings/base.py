@@ -191,8 +191,8 @@ LOGGING = {
     "disable_existing_loggers": False,
 
     "filters": {
-        "request_id": {
-            "()": "apps.common.logging_filters.RequestIDFilter",
+        "request_context": {
+            "()": "apps.common.request_context.RequestContextFilter",
         },
     },
 
@@ -213,8 +213,8 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "structured",
-            "filters": ["request_id"],
+            "formatter": "json",
+            "filters": ["request_context"],
         },
     },
 
