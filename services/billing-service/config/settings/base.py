@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'apps.config.middleware.RequestIDMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -192,5 +193,50 @@ CELERY_BEAT_SCHEDULE = {
             "dispatch_pending_billing_events"
         ),
         "schedule": 60.0,
+    },
+}
+
+SERVICE_NAME = env(
+    "SERVICE_NAME",
+    default="unknown-service",
+)
+
+ENVIRONMENT = env(
+    "ENVIRONMENT",
+    default="development",
+)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "config.logging.JsonFormatter",
+            "service_name": SERVICE_NAME,
+            "environment": ENVIRONMENT,
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "filters": ["request_context"],
+        },
+    },
+    "filters": {
+        "request_context": {
+            "()": "config.request_context.RequestContextFilter",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": env("LOG_LEVEL", default="INFO"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
     },
 }
