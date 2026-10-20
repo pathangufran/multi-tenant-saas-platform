@@ -75,4 +75,8 @@ urlpatterns = [
         ),
         name="swagger-ui",
     ),
+    path(
+        "metrics/",
+        include("django_prometheus.urls")
+    ),
 ]
