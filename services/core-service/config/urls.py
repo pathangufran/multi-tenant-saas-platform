@@ -43,4 +43,8 @@ urlpatterns = [
         'api/v1/tags/',
         include('apps.tags.urls'),
     ),
+    path(
+        'metrics/',
+        include('django_prometheus.urls'),
+    ),
 ]
