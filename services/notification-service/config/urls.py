@@ -23,4 +23,8 @@ urlpatterns = [
         "api/v1/exports/",
         include("apps.exports.urls"),
     ),
+    path(
+        'metrics/',
+        include('django_prometheus.urls')
+    ),
 ]
