@@ -45,9 +45,12 @@ INSTALLED_APPS = [
     
     'rest_framework',
     'drf_spectacular',
+    'django_prometheus',
 ]
 
 MIDDLEWARE = [
+    
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     
     'apps.config.middleware.RequestIDMiddleware',
     
@@ -59,6 +62,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.tenants.middleware.TenantContextMiddleware',
+    
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
