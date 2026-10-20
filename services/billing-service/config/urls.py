@@ -48,4 +48,8 @@ urlpatterns = [
         "api/v1/integrations/",
         include("apps.integrations.urls")
     ),
+    path(
+        "metrics/",
+        include("django_prometheus.urls")
+    ),
 ]
