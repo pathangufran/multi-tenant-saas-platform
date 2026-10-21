@@ -206,3 +206,23 @@ LOGGING = {
         },
     },
 }
+
+SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = env(
+    "SENTRY_ENVIRONMENT", default=""
+)
+SENTRY_TRACES_SAMPLE_RATE = env(
+    "SENTRY_TRACES_SAMPLE_RATE",
+    default=0.0,
+    cast=float,
+)
+
+from config.observability import (
+    initialize_error_tracking,
+)
+
+initialize_error_tracking(
+    dsn=SENTRY_DSN,
+    environment=SENTRY_ENVIRONMENT,
+    traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+)
