@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+    'apps.common',
     'apps.tenants',
     
     'rest_framework',
@@ -240,4 +241,14 @@ initialize_error_tracking(
     dsn=SENTRY_DSN,
     environment=SENTRY_ENVIRONMENT,
     traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+)
+
+CELERY_MONITORED_QUEUES = env(
+    "CELERY_MONITORED_QUEUES",
+    default="celery",
+    cast=lambda value: [
+        queue.strip()
+        for queue in value.split(",")
+        if queue.strip()
+    ]
 )
