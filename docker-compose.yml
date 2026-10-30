@@ -36,6 +36,60 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-core:
+    image: postgres:16
+    container_name: saas_postgres_core
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saas_core
+      POSTGRES_USER: saas_core_user
+      POSTGRES_PASSWORD: Core@12345
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_core_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_core_user -d saas_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-notification:
+    image: postgres:16
+    container_name: saas_postgres_notification
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saas_notification
+      POSTGRES_USER: saas_notification_user
+      POSTGRES_PASSWORD: Notification@12345
+    ports:
+      - "5439:5432"
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_notification_user -d saas_notification"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-billing:
+    image: postgres:16
+    container_name: saas_postgres_billing
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: saas_billing
+      POSTGRES_USER: saas_billing_user
+      POSTGRES_PASSWORD: Billing@12345
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_billing_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas_billing_user -d saas_billing"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: saas_redis
@@ -55,7 +109,7 @@ services:
     build:
       context: ./services/auth-service
     container_name: saas_celery
-    command: celery -A config worker --loglevel=info
+    command: celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/auth-service:/app
@@ -64,6 +118,24 @@ services:
     depends_on:
       postgres-auth:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  
+  flower:
+    build:
+      context: ./infra/flower
+      dockerfile: Dockerfile
+    container_name: saas_flower
+    restart: unless-stopped
+    environment:
+      CELERY_BROKER_URL: ${FLOWER_BROKER_URL:-redis://redis:6379/5}
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:?Set FLOWER_BASIC_AUTH in the root .env file}
+    ports:
+      - "127.0.0.1:5555:5555"
+    volumes:
+      - flower_data:/data
+    depends_on:
       redis:
         condition: service_healthy
 
@@ -103,7 +175,105 @@ services:
       redis:
         condition: service_healthy
 
+  core-service:
+    build:
+      context: ./services/core-service
+    container_name: saas_core_service
+    command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
+    volumes:
+      - ./services/core-service:/app
+    env_file:
+      - ./services/core-service/.env.docker
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres-core:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+    container_name: saas_notification_service
+    command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
+    volumes:
+      - ./services/notification-service:/app
+    env_file:
+      - ./services/notification-service/.env.docker
+    ports:
+      - "8003:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  billing-service:
+    build:
+      context: ./services/billing-service
+    container_name: saas_billing_service
+    command: python manage.py runserver 0.0.0.0:8000
+    working_dir: /app
+    volumes:
+      - ./services/billing-service:/app
+    env_file:
+      - ./services/billing-service/.env.docker
+    ports:
+      - "8004:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery-core:
+    build:
+      context: ./services/core-service
+    container_name: saas_celery_core
+    command: celery -A config worker --loglevel=info --events
+    working_dir: /app
+    volumes:
+      - ./services/core-service:/app
+    env_file:
+      - ./services/core-service/.env.docker
+    depends_on:
+      postgres-core:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery-notification:
+    build:
+      context: ./services/notification-service
+    container_name: saas_celery_notification
+    command: celery -A config worker --loglevel=info --events
+    working_dir: /app
+    volumes:
+      - ./services/notification-service:/app
+    env_file:
+      - ./services/notification-service/.env.docker
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery-billing:
+    build:
+      context: ./services/billing-service
+    container_name: saas_celery_billing
+    command: celery -A config worker --loglevel=info --events
+    working_dir: /app
+    volumes:
+      - ./services/billing-service:/app
+    env_file:
+      - ./services/billing-service/.env.docker
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_auth_data:
   postgres_tenant_data:
+  postgres_core_data:
+  postgres_notification_data:
+  postgres_billing_data:
   redis_data:
+  flower_data:
