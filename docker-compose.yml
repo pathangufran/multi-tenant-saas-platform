@@ -109,7 +109,7 @@ services:
     build:
       context: ./services/auth-service
     container_name: saas_celery
-    command: celery -A config worker --loglevel=info --events
+    command: opentelemetry-instrument celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/auth-service:/app
@@ -120,8 +120,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
-  
   flower:
     build:
       context: ./infra/flower
@@ -179,7 +180,7 @@ services:
     build:
       context: ./services/core-service
     container_name: saas_core_service
-    command: python manage.py runserver 0.0.0.0:8000
+    command: opentelemetry-instrument python manage.py runserver 0.0.0.0:8000
     working_dir: /app
     volumes:
       - ./services/core-service:/app
@@ -197,7 +198,7 @@ services:
     build:
       context: ./services/notification-service
     container_name: saas_notification_service
-    command: python manage.py runserver 0.0.0.0:8000
+    command: opentelemetry-instrument celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/notification-service:/app
@@ -229,7 +230,7 @@ services:
     build:
       context: ./services/core-service
     container_name: saas_celery_core
-    command: celery -A config worker --loglevel=info --events
+    command: opentelemetry-instrument celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/core-service:/app
@@ -240,12 +241,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
   celery-notification:
     build:
       context: ./services/notification-service
     container_name: saas_celery_notification
-    command: celery -A config worker --loglevel=info --events
+    command: opentelemetry-instrument celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/notification-service:/app
@@ -254,12 +257,14 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
   celery-billing:
     build:
       context: ./services/billing-service
     container_name: saas_celery_billing
-    command: celery -A config worker --loglevel=info --events
+    command: opentelemetry-instrument celery -A config worker --loglevel=info --events
     working_dir: /app
     volumes:
       - ./services/billing-service:/app
@@ -268,6 +273,20 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
+  
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: saas_jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+    expose:
+      - "4317"
+      - "4318"
 
 volumes:
   postgres_auth_data:
