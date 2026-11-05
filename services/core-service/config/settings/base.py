@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.comments',
     'apps.attachments',
     'apps.tags',
+    'apps.outbox',
 ]
 
 MIDDLEWARE = [
@@ -224,3 +225,17 @@ CELERY_MONITORED_QUEUES = env(
         if queue.strip()
     ]
 )
+
+KAFKA_BOOTSTRAP_SERVERS = env(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    default="localhost:9092",
+)
+
+CELERY_BEAT_SCHEDULE = {
+    # Preserve existing scheduled tasks.
+
+    "publish-core-outbox-events": {
+        "task": "apps.outbox.tasks.publish_outbox_events",
+        "schedule": 5.0,
+    },
+}
