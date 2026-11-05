@@ -1,0 +1,20 @@
+
+{
+  "event_id": "e5d28d90-8c40-4a14-8b27-4b45d4c6b100",
+  "event_type": "task.assigned",
+  "event_version": 1,
+  "occurred_at": "2026-11-01T10:30:00Z",
+  "producer": "core-service",
+  "tenant_id": "d9c0c14c-fb90-48f8-ae9e-7c5a78f45e01",
+  "aggregate_type": "task",
+  "aggregate_id": "b82d69de-a75c-46d5-bf1d-7abcfb04d0d3",
+  "aggregate_version": 3,
+  "correlation_id": "0df5a1be-0e12-4d68-b4a4-7b7e4b44b620",
+  "causation_id": null,
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "task_id": "b82d69de-a75c-46d5-bf1d-7abcfb04d0d3",
+    "project_id": "cd90c14c-fb90-48d5-bf1d-7abcfb04d0d3",
+    "assigned_to": "a8f6d9de-98d0-4f7b-b8a0-1c5f2c90e123"
+  }
+}

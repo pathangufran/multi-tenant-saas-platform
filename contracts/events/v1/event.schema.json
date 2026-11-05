@@ -1,0 +1,82 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saas-platform.local/contracts/events/v1/event.schema.json",
+  "title": "SaaS Platform Domain Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "producer",
+    "tenant_id",
+    "aggregate_type",
+    "aggregate_id",
+    "correlation_id",
+    "causation_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+    },
+    "event_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "enum": [
+        "auth-service",
+        "tenant-service",
+        "core-service",
+        "billing-service",
+        "notification-service"
+      ]
+    },
+    "tenant_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "aggregate_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "aggregate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "traceparent": {
+      "type": ["string", "null"],
+      "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-9a-f]$"
+    },
+    "data": {
+      "type": "object"
+    }
+  }
+}
