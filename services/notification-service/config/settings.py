@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.reports',
     'apps.exports',
     'apps.failed_jobs',
+    'apps.event_consumers',
 ]
 
 MIDDLEWARE = [
@@ -236,4 +237,25 @@ CELERY_MONITORED_QUEUES = env(
         for queue in value.split(",")
         if queue.strip()
     ],
+)
+
+KAFKA_BOOTSTRAP_SERVERS = env(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    default="localhost:9092",
+)
+
+KAFKA_EVENTS_TOPIC = env(
+    "KAFKA_EVENTS_TOPIC",
+    default="saas.events.v1",
+)
+
+KAFKA_CONSUMER_GROUP = env(
+    "KAFKA_CONSUMER_GROUP",
+    default="notification-service-v1",
+)
+
+KAFKA_CONSUMER_RETRY_DELAY = env(
+    "KAFKA_CONSUMER_RETRY_DELAY",
+    cast=int,
+    default=5,
 )
