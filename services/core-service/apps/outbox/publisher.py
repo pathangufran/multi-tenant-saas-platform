@@ -18,14 +18,18 @@ LEASE_SECONDS = 60
 PUBLISH_TIMEOUT_SECONDS = 10
 
 def build_partition_key(event):
-    if event.tenant_id:
+    tenant_id = event.get("tenant_id")
+    aggregate_type = event["aggregate_type"]
+    aggregate_id = event["aggregate_id"]
+
+    if tenant_id:
         return (
-            f"{event.tenant_id}:"
-            f"{event.aggregate_type}:"
-            f"{event.aggregate_id}"
+            f"{tenant_id}:"
+            f"{aggregate_type}:"
+            f"{aggregate_id}"
         )
-        
-    return f"{event.aggregate_type}:{event.aggregate_id}"
+
+    return f"{aggregate_type}:{aggregate_id}"
 
 def build_event_envelope(event):
     return {
