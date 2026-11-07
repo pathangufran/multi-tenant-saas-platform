@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.common',
     'apps.users',
     'apps.authentication',
+    'apps.outbox',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
@@ -197,7 +198,7 @@ LOGGING = {
 
     "filters": {
         "request_context": {
-            "()": "apps.common.request_context.RequestContextFilter",
+            "()": "config.request_context.RequestContextFilter",
         },
     },
 
@@ -218,7 +219,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "json",
+            "formatter": "structured",
             "filters": ["request_context"],
         },
     },
@@ -279,3 +280,22 @@ CELERY_MONITORED_QUEUES = env(
         if queue.strip()
     ]
 )
+
+# Kafka
+
+KAFKA_BOOTSTRAP_SERVERS = env.list(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    default=["localhost:9092"],
+)
+
+KAFKA_EVENTS_TOPIC = env(
+    "KAFKA_EVENTS_TOPIC",
+    default="saas.events.v1",
+)
+
+CELERY_BEAT_SCHEDULE = {
+    "publish-auth-outbox-events": {
+        "task": "apps.outbox.tasks.publish_outbox_events",
+        "schedule": 5.0,
+    },
+}

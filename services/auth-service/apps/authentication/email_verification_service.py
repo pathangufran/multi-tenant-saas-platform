@@ -9,6 +9,7 @@ from apps.common.exceptions import (
 from apps.users.models import User,EmailVerificationToken
 from .models import AuthenticationAuditEvent
 from .audit_service import AuthenticationAuditService
+from apps.outbox.services import OutboxService
 
 class EmailVerificationService:
     
@@ -68,6 +69,7 @@ class EmailVerificationService:
             verification_token = (
                 EmailVerificationToken.objects
                 .select_related("user")
+                .select_for_update()
                 .get(token=token)
             )
         except EmailVerificationToken.DoesNotExist:
@@ -114,6 +116,17 @@ class EmailVerificationService:
             user=user,
             ip_address=ip_address,
             request_id=request_id,
+        )
+        
+        OutboxService.record_event(
+            event_type="user.email_verified",
+            aggregate_type="user",
+            aggregate_id=str(user.id),
+            aggregate_version=2,
+            data={
+                "user_id": str(user.id),
+                "email": user.email,
+            },
         )
         
         return user

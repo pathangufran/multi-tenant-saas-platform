@@ -4,6 +4,7 @@ from apps.common.exceptions import ConflictError
 from datetime import timedelta
 from django.utils import timezone
 from .models import EmailVerificationToken
+from outbox.services import OutboxService
 
 User = get_user_model()
 
@@ -39,6 +40,18 @@ class UserService:
             EmailVerificationToken.objects.create(
                 user=user,
                 expires_at=timezone.now() + timedelta(hours=24)
+            )
+            
+            OutboxService.record_event(
+                event_type="user.registered",
+                aggregate_type="user",
+                aggregate_id=str(user.id),
+                aggregate_version=1,
+                data={
+                    "user_id": str(user.id),
+                    "email": user.email,
+                    "first_name": user.first_name or "",
+                },
             )
 
         except IntegrityError:
