@@ -13,6 +13,7 @@ from django.apps import config
 import environ
 from pathlib import Path
 from datetime import timedelta
+from celery.schedules import schedule
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -262,3 +263,33 @@ KAFKA_EVENTS_TOPIC = env(
     "KAFKA_EVENTS_TOPIC",
     default="saas.events.v1",
 )
+
+CELERY_BROKER_URL = env(
+    "CELERY_BROKER_URL",
+    default="redis://localhost:6379/6",
+)
+
+CELERY_RESULT_BACKEND = env(
+    "CELERY_RESULT_BACKEND",
+    default="redis://localhost:6379/7",
+)
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True
+
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+CELERY_BEAT_SCHEDULE = {
+    "tenant-outbox-publish-every-5-seconds": {
+        "task": "apps.outbox.tasks.publish_outbox_events",
+        "schedule": schedule(5.0),
+        "options": {
+            "queue": "tenant-outbox",
+        },
+    },
+}
