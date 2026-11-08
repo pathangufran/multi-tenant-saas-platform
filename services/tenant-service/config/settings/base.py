@@ -252,3 +252,13 @@ CELERY_MONITORED_QUEUES = env(
         if queue.strip()
     ]
 )
+
+KAFKA_BOOTSTRAP_SERVERS = env(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    default="localhost:9092",
+)
+
+KAFKA_EVENTS_TOPIC = env(
+    "KAFKA_EVENTS_TOPIC",
+    default="saas.events.v1",
+)
