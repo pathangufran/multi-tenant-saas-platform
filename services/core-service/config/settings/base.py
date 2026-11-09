@@ -240,3 +240,20 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 5.0,
     },
 }
+
+KAFKA_MAX_RETRIES = env(
+    "KAFKA_MAX_RETRIES",
+    0
+)
+KAFKA_RETRY_BASE_DELAY = env(
+    "KAFKA_RETRY_BASE_DELAY",
+    0
+)
+KAFKA_RETRY_MAX_DELAY = env(
+    "KAFKA_RETRY_MAX_DELAY",
+    0
+)
+KAFKA_RETRY_JITTER = env(
+    "KAFKA_RETRY_MAX_DELAY",
+    True
+)
