@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.attachments',
     'apps.tags',
     'apps.outbox',
+    'apps.event_consumers',
 ]
 
 MIDDLEWARE = [

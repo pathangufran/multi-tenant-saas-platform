@@ -18,6 +18,7 @@ LEASE_SECONDS = 60
 PUBLISH_TIMEOUT_SECONDS = 10
 
 def build_partition_key(event):
+    
     tenant_id = event.get("tenant_id")
     aggregate_type = event["aggregate_type"]
     aggregate_id = event["aggregate_id"]
@@ -32,6 +33,7 @@ def build_partition_key(event):
     return f"{aggregate_type}:{aggregate_id}"
 
 def build_event_envelope(event):
+    
     return {
         "event_id": str(event.event_id),
         "event_type": event.event_type,
@@ -55,8 +57,15 @@ def build_event_envelope(event):
     }
     
 def claim_pending_events(limit=BATCH_SIZE):
+    
+    if limit < 1:
+        raise ValueError(
+            "Limit must be at least 1."
+        )
+    
+    
     now = timezone.now()
-    events = []
+    claimed_events = []
     
     with transaction.atomic():
         candidates = (
@@ -97,11 +106,12 @@ def claim_pending_events(limit=BATCH_SIZE):
                 ]
             )
             
-            events.append((event,token))
+            claimed_events.append((event,token))
             
-    return events
+    return claimed_events
 
 def mark_published(event_id,token):
+    
     return OutboxEvent.objects.filter(
         event_id=event_id,
         status=OutboxEvent.Status.PROCESSING,
@@ -115,6 +125,7 @@ def mark_published(event_id,token):
     ) == 1
     
 def mark_publish_failed(event_id,token,error):
+    
     event = OutboxEvent.objects.get(
         event_id=event_id,
         status=OutboxEvent.Status.PROCESSING,
@@ -145,6 +156,7 @@ def mark_publish_failed(event_id,token,error):
     ) == 1
     
 def create_kafka_producer():
+    
     bootstrap_servers = getattr(
         settings,
         "KAFKA_BOOTSTRAP_SERVERS",
@@ -154,6 +166,18 @@ def create_kafka_producer():
     if not bootstrap_servers:
         return RuntimeError(
             "KAFKA_BOOTSTRAP_SERVERS is not configured."
+        )
+        
+    if isinstance(bootstrap_servers,str):
+        bootstrap_servers = [
+            server.strip()
+            for server in bootstrap_servers.split(",")
+            if server.strip()
+        ]
+    
+    if not bootstrap_servers:
+        raise RuntimeError(
+            "No valid Kafka bootstrap servers configured."
         )
         
     return KafkaProducer(
@@ -170,6 +194,7 @@ def create_kafka_producer():
     )
     
 def publish_pending_events(limit=BATCH_SIZE):
+    
     claimed_events = claim_pending_events(
         limit=limit
     )
