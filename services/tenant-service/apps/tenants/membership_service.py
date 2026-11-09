@@ -2,13 +2,13 @@ from uuid import UUID
 from django.db import IntegrityError,transaction
 from django.utils import timezone
 from apps.common.exceptions import (
-    AuthorizationError,
     ConflictError,
     ResourceNotFoundError,
     ValidationError,
 )
 from .models import Tenant,TenantMembership,Role
 from .isolation import TenantIsolationService
+from apps.outbox.services import OutboxService
 
 class TenantMembershipService:
     
@@ -59,6 +59,25 @@ class TenantMembershipService:
             raise ConflictError(
                 "User is already a member of this tenant."
             ) from exc
+            
+        if status == TenantMembership.Status.INVITED:
+            event_type = "member.invited"
+        else:
+            event_type = "member.joined"
+            
+        OutboxService.record_event(
+            event_type=event_type,
+            aggregate_type="membership",
+            aggregate_id=membership.id,
+            tenant_id=tenant.id,
+            aggregate_version=1,
+            data={
+                "membership_id": str(membership.id),
+                "tenant_id": str(tenant.id),
+                "user_id": str(user_id),
+                "role_id": str(role.id),
+            },
+        )
         
         return membership
         
@@ -79,10 +98,10 @@ class TenantMembershipService:
                     tenant_id=tenant_id,    
                 )
             )
-        except TenantMembership.DoesNotExist:
+        except TenantMembership.DoesNotExist as exc:
             raise ResourceNotFoundError(
                 message="Membership not found."
-            )
+            ) from exc
         
         TenantIsolationService.ensure_tenant_access(
             tenant_id=membership.tenant_id,
@@ -93,6 +112,11 @@ class TenantMembershipService:
                 message="Removed membership cannot be activated."
             )
             
+        previous_status = membership.status
+        
+        if previous_status == TenantMembership.Status.ACTIVE:
+            return membership
+            
         membership.status == TenantMembership.Status.ACTIVE
         
         if membership.joined_at is None:
@@ -101,6 +125,25 @@ class TenantMembershipService:
         membership.save(
             update_fields=["status","joined_at","updated_at",],
         )
+        
+        if previous_status == TenantMembership.Status.INVITED:
+            OutboxService.record_event(
+                event_type="member.joined",
+                aggregate_type="membership",
+                aggregate_id=membership.id,
+                tenant_id=membership.tenant_id,
+                aggregate_version=2,
+                data={
+                    "membership_id": str(membership.id),
+                    "tenant_id": str(membership.tenant_id),
+                    "user_id": str(membership.user_id),
+                    "role_id": (
+                        str(membership.role_id)
+                        if membership.role_id
+                        else None
+                    ),
+                },
+            )
         
         return membership
     
@@ -120,10 +163,10 @@ class TenantMembershipService:
                     tenant_id=tenant_id,    
                 )
             )  
-        except TenantMembership.DoesNotExist:
+        except TenantMembership.DoesNotExist as exc:
             raise ResourceNotFoundError(
                 message="Membership not found."
-            )
+            ) from exc
             
         TenantIsolationService.ensure_tenant_access(
             tenant_id=membership.tenant_id,
@@ -158,10 +201,10 @@ class TenantMembershipService:
                     tenant_id=tenant_id,
                 )
             )
-        except TenantMembership.DoesNotExist:
+        except TenantMembership.DoesNotExist as exc:
             raise ResourceNotFoundError(
                 message="Membership not found."
-            )
+            ) from exc
             
         TenantIsolationService.ensure_tenant_access(
             tenant_id=membership.tenant_id,
@@ -201,7 +244,6 @@ class TenantMembershipRoleService:
                 membership = (
                     TenantMembership.objects
                     .select_for_update()
-                    # .select_related("role")
                     .get(
                         id=membership_id,
                         tenant_id=tenant_id,

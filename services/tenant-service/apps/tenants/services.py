@@ -7,6 +7,7 @@ from apps.common.exceptions import (
 )
 from django.http import JsonResponse
 from .audit_service import AuditEventService
+from apps.outbox.services import OutboxService
 
 class TenantService:
     
@@ -43,7 +44,7 @@ class TenantService:
                 slug=slug,
                 status=Tenant.Status.ACTIVE,
             )
-            TenantMembership.objects.create(
+            owner_membership = TenantMembership.objects.create(
                 tenant=tenant,
                 user_id=owner_user_id,
                 status=TenantMembership.Status.ACTIVE,
@@ -57,6 +58,34 @@ class TenantService:
                 metadata={
                     "name": tenant.name,
                     "slug": tenant.slug,
+                },
+            )
+            
+            OutboxService.record_event(
+                event_type="tenant.created",
+                aggregate_type="tenant",
+                aggregate_id=tenant.id,
+                tenant_id=tenant.id,
+                aggregate_version=1,
+                data={
+                    "tenant_id": str(tenant.id),
+                    "name": tenant.name,
+                    "slug": tenant.slug,
+                    "owner_user_id": str(owner_user_id),
+                },
+            )
+            
+            OutboxService.record_event(
+                event_type="member.joined",
+                aggregate_type="membership",
+                aggregate_id=owner_membership.id,
+                tenant_id=tenant.id,
+                aggregate_version=1,
+                data={
+                    "membership_id": str(owner_membership.id),
+                    "tenant_id": str(tenant.id),
+                    "user_id": str(owner_user_id),
+                    "role_id": None,
                 },
             )
             
@@ -91,7 +120,7 @@ class TenantService:
         try:
             tenant = (
                 Tenant.objects
-                .filter(
+                .get(
                     id=tenant_id,
                     memberships__user_id=user_id,
                     memberships__status=(
