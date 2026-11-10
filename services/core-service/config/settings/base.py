@@ -241,21 +241,21 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-KAFKA_MAX_RETRIES = env(
+KAFKA_MAX_RETRIES = env.int(
     "KAFKA_MAX_RETRIES",
-    0
+    default=5,
 )
-KAFKA_RETRY_BASE_DELAY = env(
+KAFKA_RETRY_BASE_DELAY = env.float(
     "KAFKA_RETRY_BASE_DELAY",
-    0
+    default=2,
 )
-KAFKA_RETRY_MAX_DELAY = env(
+KAFKA_RETRY_MAX_DELAY = env.float(
     "KAFKA_RETRY_MAX_DELAY",
-    0
+    default=60,
 )
-KAFKA_RETRY_JITTER = env(
+KAFKA_RETRY_JITTER = env.bool(
     "KAFKA_RETRY_MAX_DELAY",
-    True
+    default=True,
 )
 
 KAFKA_EVENTS_TOPIC = env(
