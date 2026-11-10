@@ -257,3 +257,16 @@ KAFKA_RETRY_JITTER = env(
     "KAFKA_RETRY_MAX_DELAY",
     True
 )
+
+KAFKA_EVENTS_TOPIC = env(
+    "KAFKA_EVENTS_TOPIC",
+    default="saas.events.v1",
+)
+KAFKA_DLQ_TOPIC = env(
+    "KAFKA_DLQ_TOPIC",
+    default="saas.events.dlq.v1",
+)
+KAFKA_CONSUMER_GROUP = env(
+    "KAFKA_CONSUMER_GROUP",
+    default="core-service-v1",
+)
