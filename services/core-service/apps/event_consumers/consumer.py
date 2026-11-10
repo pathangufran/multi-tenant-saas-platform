@@ -32,7 +32,7 @@ class CoreEventConsumer:
         self._running = False
         
     def create_consumer(self):
-        
+
         return KafkaConsumer(
             settings.KAFKA_EVENTS_TOPIC,
             bootstrap_servers=(
@@ -42,6 +42,7 @@ class CoreEventConsumer:
             enable_auto_commit=False,
             auto_offset_reset="earliest",
             max_poll_records=1,
+            max_poll_interval_ms=600000,
             value_deserializer=lambda value: json.loads(
                 value.decode("utf-8")
             ),
