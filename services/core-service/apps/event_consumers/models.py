@@ -152,6 +152,9 @@ class TenantStatusProjection(models.Model):
         default=Status.ACTIVE,
         db_index=True,
     )
+    aggregate_version = models.PositiveBigIntegerField(
+        default=0,
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -161,8 +164,11 @@ class TenantStatusProjection(models.Model):
     
     class Meta:
         db_table = "core_tenant_status_projection"
-        
         ordering = ["tenant_id"]
         
     def __str__(self):
-        return f"{self.tenant_id} - {self.status}"
+        return (
+            f"{self.tenant_id} - "
+            f"{self.status} - "
+            f"v{self.aggregate_version}"
+        )
