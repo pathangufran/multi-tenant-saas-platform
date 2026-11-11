@@ -136,4 +136,33 @@ class FailedEvent(models.Model):
             f"{self.event_id} - {self.status}"
         )
     
+class TenantStatusProjection(models.Model):
+
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        SUSPENDED = "SUSPENDED", "Suspended"
+        DEACTIVATED = "DEACTIVATED", "Deactivated"
+        
+    tenant_id = models.UUIDField(
+        primary_key=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
     
+    class Meta:
+        db_table = "core_tenant_status_projection"
+        
+        ordering = ["tenant_id"]
+        
+    def __str__(self):
+        return f"{self.tenant_id} - {self.status}"

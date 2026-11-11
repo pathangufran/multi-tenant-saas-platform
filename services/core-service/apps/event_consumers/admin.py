@@ -3,6 +3,9 @@ from apps.event_consumers.models import (
     ProcessedEvent,
     FailedEvent,
 )
+from apps.event_consumers.models import (
+    TenantStatusProjection,
+)
 
 @admin.register(ProcessedEvent)
 class ProcessedEventAdmin(admin.ModelAdmin):
@@ -79,3 +82,31 @@ class FailedEventAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+    
+@admin.register(TenantStatusProjection)
+class TenantStatusProjectionAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "tenant_id",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = (
+        "status",
+    )
+    search_fields = (
+        "tenant_id",
+    )
+    readonly_fields = (
+        "tenant_id",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
