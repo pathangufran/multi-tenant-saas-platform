@@ -26,6 +26,9 @@ class Tenant(models.Model):
         default=Status.ACTIVE,
         db_index=True,
     )
+    aggregate_version = models.PositiveBigIntegerField(
+        default=0,
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,

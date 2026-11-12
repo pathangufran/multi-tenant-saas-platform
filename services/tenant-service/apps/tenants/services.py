@@ -43,6 +43,7 @@ class TenantService:
                 name=name,
                 slug=slug,
                 status=Tenant.Status.ACTIVE,
+                aggregate_version=1,
             )
             owner_membership = TenantMembership.objects.create(
                 tenant=tenant,
@@ -63,10 +64,11 @@ class TenantService:
             
             OutboxService.record_event(
                 event_type="tenant.created",
+                event_version=1,
+                tenant_id=tenant.id,
                 aggregate_type="tenant",
                 aggregate_id=tenant.id,
-                tenant_id=tenant.id,
-                aggregate_version=1,
+                aggregate_version=tenant.aggregate_version,
                 data={
                     "tenant_id": str(tenant.id),
                     "name": tenant.name,
@@ -199,9 +201,14 @@ class TenantService:
             tenant.slug = slug
             
         try:
+            tenant.aggregate_version += 1
+            
             tenant.save(
                 update_fields=[
-                    "name","slug","updated_at",
+                    "name",
+                    "slug",
+                    "aggregate_version",
+                    "updated_at",
                 ]
             )
         except IntegrityError:
@@ -251,12 +258,19 @@ class TenantService:
                 message="Tenant not found."
             )
         
-        old_status = tenant.status
-            
-        tenant.status = status
+        new_status = status
+        
+        if tenant.status == new_status:
+            return tenant
+
+        tenant.status = new_status
+        tenant.aggregate_version += 1
+
         tenant.save(
             update_fields=[
-                "status","updated_at",
+                "status",
+                "aggregate_version",
+                "updated_at",
             ]
         )
         
@@ -272,14 +286,19 @@ class TenantService:
             ),
         }
         
-        event_type = event_map[status]
+        event_type = event_map.get(new_status)
+        
+        if event_type:
+            TenantService._record_lifecycle_event(
+                tenant=tenant,
+                event_type=event_type,
+            )
         
         AuditEventService.record_tenant_event(
             tenant_id=tenant.id,
             actor_user_id=user_id,
             event_type=event_type,
             metadata={
-                "previous_status": old_status,
                 "new_status": tenant.status,
             },
         )
@@ -326,4 +345,30 @@ class TenantService:
             tenant_id=tenant_id,
             user_id=user_id,
             status=Tenant.Status.DEACTIVATED,
+        )
+        
+    @staticmethod
+    def _record_lifecycle_event(
+        tenant,
+        event_type,
+        actor_user_id=None,
+    ):
+
+        OutboxService.record_event(
+            event_type=event_type,
+            event_version=1,
+            tenant_id=tenant.id,
+            aggregate_type="tenant",
+            aggregate_id=tenant.id,
+            aggregate_version=tenant.aggregate_version,
+            data={
+                "tenant_id": str(tenant.id),
+                "name": tenant.name,
+                "slug": tenant.slug,
+                "status": tenant.status,
+                "actor_user_id": (
+                    str(actor_user_id)
+                    if actor_user_id else None
+                ),
+            },
         )
