@@ -62,6 +62,7 @@ class FailedEvent(models.Model):
         PENDING = "PENDING", "Pending"
         PUBLISHED = "PUBLISHED", "Published"
         FAILED = "FAILED", "Failed"
+        REPLAYED = "REPLAYED", "Replayed"
         
     id = models.UUIDField(
         primary_key=True,
@@ -98,6 +99,17 @@ class FailedEvent(models.Model):
     dlq_published_at = models.DateTimeField(
         null=True,
         blank=True,
+    )
+    replayed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    replay_count = models.PositiveIntegerField(
+        default=0,
+    )
+    last_replay_error = models.TextField(
+        blank=True,
+        default="",
     )
     created_at = models.DateTimeField(
         auto_now_add=True,

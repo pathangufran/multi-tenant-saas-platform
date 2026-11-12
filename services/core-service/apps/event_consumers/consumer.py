@@ -3,6 +3,8 @@ import logging
 import time
 import uuid
 from kafka import KafkaConsumer,KafkaError
+from kafka import TopicPartition
+from kafka.structs import OffsetAndMetadata
 from django.conf import settings
 from apps.event_consumers.dlq import DeadLetterPublisher
 from apps.event_consumers.exceptions import (
@@ -14,6 +16,15 @@ from apps.event_consumers.failure_services import (
 from apps.event_consumers.retry import RetryPolicy
 from apps.event_consumers.services import (
     EventProcessingService,
+)
+from apps.event_consumers.monitoring import (
+    log_event,
+    observe_processing_duration,
+    record_processing_failure,
+    record_processing_success,
+    record_ignored_event,
+    record_dlq_event,
+    set_consumer_health,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,9 +65,9 @@ class CoreEventConsumer:
             message.value
         )
         
-    def commit_message(self):
+    def commit_message(self,message):
         
-        self.consumer.commit()
+        self.consumer.commit(message)
         
     def retry_message(self,attempt):
         
@@ -213,19 +224,70 @@ class CoreEventConsumer:
                 if attempt < max_retries:
                     self.retry_message(attempt)
 
-        dlq_result = self.send_to_dlq(
-            message=message,
-            attempts=attempt,
-            error=last_error,
-        )
-        
         self.commit_message()
         
-        return {
-            "status": "DLQ_PUBLISHED",
-            "event_id": dlq_result["event_id"],
-            "dlq": dlq_result,
-        }
+        try:
+            message.value = self.deserialize_message(message)
+        except ValueError as exc:
+            return self.send_to_dlq(
+                message=message,
+                error=exc,
+                commit_after_publish=True,
+            )
+        
+    def commit_message(self, message):
+        """
+        Commit only the offset of the message that has been
+        successfully processed or durably published to the DLQ.
+        """
+
+        topic_partition = TopicPartition(
+            message.topic,
+            message.partition,
+        )
+
+        offset_metadata = OffsetAndMetadata(
+            message.offset + 1,
+            "",
+        )
+
+        self.consumer.commit(
+            offsets={
+                topic_partition: offset_metadata,
+            }
+        )
+
+    def deserialize_message(self, message):
+        """
+        Deserialize a Kafka message safely.
+
+        Returns:
+            dict: Valid JSON event.
+
+        Raises:
+            ValueError: Invalid JSON or unsupported payload type.
+        """
+
+        raw_value = message.value
+
+        if isinstance(raw_value, dict):
+            return raw_value
+
+        if isinstance(raw_value, str):
+            raw_value = raw_value.encode("utf-8")
+
+        if not isinstance(raw_value, bytes):
+            raise ValueError("Kafka message payload must be bytes or JSON object")
+
+        try:
+            payload = json.loads(raw_value.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Kafka message contains invalid JSON") from exc
+
+        if not isinstance(payload, dict):
+            raise ValueError("Kafka event must be a JSON object")
+
+        return payload
 
     def run(self):
         
