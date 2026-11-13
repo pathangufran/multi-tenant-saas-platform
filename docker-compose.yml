@@ -125,7 +125,7 @@ services:
 
   flower:
     build:
-      context: ./infra/flower
+      context: ./infrastructure/flower
       dockerfile: Dockerfile
     container_name: saas_flower
     restart: unless-stopped
@@ -192,6 +192,8 @@ services:
       postgres-core:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
 
   notification-service:
@@ -275,6 +277,72 @@ services:
         condition: service_healthy
       jaeger:
         condition: service_started
+
+    celery-tenant:
+      build:
+        context: ./services/tenant-service
+      container_name: saas_celery_tenant
+      restart: unless-stopped
+      command: >
+        opentelemetry-instrument celery -A config worker
+        --loglevel=info
+        --events
+        --queues=tenant-outbox
+        --hostname=tenant-outbox@%h
+      working_dir: /app
+      volumes:
+        - ./services/tenant-service:/app
+      env_file:
+        - ./services/tenant-service/.env.docker
+      depends_on:
+        postgres-tenant:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+        jaeger:
+          condition: service_started
+
+  celery-beat-tenant:
+    build:
+      context: ./services/tenant-service
+    container_name: saas_celery_beat_tenant
+    restart: unless-stopped
+    command: >
+      opentelemetry-instrument celery -A config beat
+      --loglevel=info
+    working_dir: /app
+    volumes:
+      - ./services/tenant-service:/app
+    env_file:
+      - ./services/tenant-service/.env.docker
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery-tenant:
+        condition: service_started
+      jaeger:
+        condition: service_started
+
+  core-event-consumer:
+    build:
+      context: ./services/core-service
+    container_name: saas_core_event_consumer
+    command: >
+      opentelemetry-instrument
+      python manage.py run_event_consumer
+    working_dir: /app
+    env_file:
+      - ./services/core-service/.env.docker
+    volumes:
+      - ./services/core-service:/app
+    depends_on:
+      postgres-core:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
   
   jaeger:
     image: jaegertracing/all-in-one:1.62
@@ -288,6 +356,102 @@ services:
       - "4317"
       - "4318"
 
+  
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: saas_kafka
+    restart: unless-stopped
+
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: INTERNAL://:29092,CONTROLLER://:9093,EXTERNAL://:9092
+
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+    ports:
+      - "127.0.0.1:9092:9092"
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list >/dev/null 2>&1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  notification-consumer:
+    build:
+      context: ./services/notification-service
+    container_name: saas_notification_consumer
+    restart: unless-stopped
+    command: python manage.py consume_events
+    env_file:
+      - ./services/notification-service/.env.docker
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres-notification:
+        condition: service_healthy
+    networks:
+      - saas_network
+
+  pgbouncer:
+    build:
+      context: ./infrastructure/pgbouncer
+      dockerfile: Dockerfile
+
+    container_name: saas_pgbouncer
+
+    restart: unless-stopped
+
+    ports:
+      - "6432:6432"
+
+    env_file:
+      - .env.docker
+
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      postgres-tenant:
+        condition: service_healthy
+      postgres-core:
+        condition: service_healthy
+      postgres-billing:
+        condition: service_healthy
+      postgres-notification:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -h 127.0.0.1 -p 6432"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_auth_data:
   postgres_tenant_data:
@@ -296,3 +460,4 @@ volumes:
   postgres_billing_data:
   redis_data:
   flower_data:
+  kafka_data:
