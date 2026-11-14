@@ -100,6 +100,7 @@ DATABASES = {
         "PORT": env("DB_PORT","6432"),
         "CONN_MAX_AGE": 0,
         "CONN_HEALTH_CHECKS": True,
+        "DISABLE_SERVER_SIDE_CURSORS": True,
         "OPTIONS": {
             "connect_timeout": 10,
             "application_name": env(
