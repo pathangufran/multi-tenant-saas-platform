@@ -5,5 +5,9 @@ set -eu
 envsubst < /etc/pgbouncer/pgbouncer.ini.template \
     > /etc/pgbouncer/pgbouncer.ini
 
-exec pgbouncer \
-    /etc/pgbouncer/pgbouncer.ini
+envsubst < /etc/pgbouncer/userlist.txt.template \
+    > /etc/pgbouncer/userlist.txt
+
+chmod 600 /etc/pgbouncer/userlist.txt
+
+exec pgbouncer /etc/pgbouncer/pgbouncer.ini

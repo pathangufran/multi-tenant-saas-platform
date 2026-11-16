@@ -153,6 +153,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+      pgbouncer:
+        condition: service_healthy
       postgres-auth:
         condition: service_healthy
       redis:
@@ -171,6 +173,8 @@ services:
     ports:
       - "8001:8000"
     depends_on:
+      pgbouncer:
+        condition: service_healthy
       postgres-tenant:
         condition: service_healthy
       redis:
@@ -189,6 +193,8 @@ services:
     ports:
       - "8002:8000"
     depends_on:
+      pgbouncer:
+        condition: service_healthy
       postgres-core:
         condition: service_healthy
       redis:
@@ -209,6 +215,8 @@ services:
     ports:
       - "8003:8000"
     depends_on:
+      pgbouncer:
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -225,6 +233,8 @@ services:
     ports:
       - "8004:8000"
     depends_on:
+      pgbouncer:
+        condition: service_healthy
       redis:
         condition: service_healthy
 
